@@ -15,12 +15,12 @@ from BB2 import BB2
 from Test import Test
 
 class GameLoop():
-    def __init__(self, array):
+    def __init__(self, array, FEN):
         pygame.init()
         self.converter = RepConversion()
         self.game_display = self.makeDisplay(1600, 1200)
         self.graphics = Graphics(self.game_display, array)#, self.converter.arr)
-        self.bb = BB2(self.converter.arrayToFEN(self.graphics.getPositionArray()))
+        self.bb = BB2(FEN)
         self.mouse = Mouse(self.graphics.coor, self.graphics.square_len)
         self.bb.getArray()
         ##FOR TESTING PURPOSES
@@ -53,13 +53,13 @@ class GameLoop():
                             # for line in self.graphics.p.pos_arr:
                             #     print(line)
                             # print()
-                            #print("move done at", mouse.mouse_loc(mousecoor))
+                            print("piece moved to ", self.mouse.mouse_loc(mousecoor))
                         else:
                             sq = self.mouse.mouse_loc(mousecoor)
                             if self.graphics.p.at(sq):
                                 makingMove = True
                                 movingPiece = sq
-                            #print(movingPiece)
+                            print(movingPiece)
             
             self.graphics.button('Undo', 40, 720, 150, 50,
                             self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.undo)
@@ -75,7 +75,9 @@ class GameLoop():
     
             pygame.display.update()  # updates entire surface, or flip
             #clock.tick(60)  # frames per second
-# game_intro()
+
+    def make_move(self):
+        pass
  
 def readIn(file):
     f = open(file, 'r')
@@ -83,12 +85,17 @@ def readIn(file):
     line = f.readline().rstrip('\n')
     pos = rc.FENtoArray(line)
     f.close()
-    return pos
+    return pos, line
+
+def main():
+    name = input('Enter input file: ')
+    r = readIn(name)
+    array = r[0]
+    FEN = r[1]
+    gl = GameLoop(array, FEN)
 
 if __name__ == '__main__':
-    name = input('Enter input file: ')
-    array = readIn(name)
-    gl = GameLoop(array)
+    main()
 
 
 

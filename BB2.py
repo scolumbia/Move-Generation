@@ -63,13 +63,13 @@ antiDiagonalMasks = [0x80, 0x8040, 0x804020, 0x80402010, 0x8040201008, 0x8040201
 antiDiagonalMasks = [np.uint64(num) for num in antiDiagonalMasks]
 
 class BB2():
-    def __init__(self, position='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR', whiteTurn = True, move_history = []):
+    def __init__(self, fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'):
         '''
         Creates an instance of a set of bitbords.
 
         Parameters
         ----------
-        position : str, optional
+        fen : str, optional
             DESCRIPTION. The default is 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR'.
         whiteTurn : bool, optional
             DESCRIPTION. The default is True. When True, it's white's turn. When False, is black's turn
@@ -79,45 +79,232 @@ class BB2():
         -------
         None.
         '''
-        
-        self.whiteTurn = whiteTurn
-        
         self.id = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5,
                        'P': 6, 'N': 7, 'B': 8, 'R': 9, 'Q': 10, 'K': 11}
-        self.bb = self.readPosition(position)
-        self.move_history = move_history
+        self.bb = []
+        self.move_history = []
+        self.whiteTurn = True
         self.castle_wk = True
         self.castle_wq = True
         self.castle_bk = True
         self.castle_bq = True
+        self.parse_fen(fen)
+        self.white_in_check = []
+        self.black_in_check = []
+        
+    def test_generate_moves(self):
+        self.whiteTurn = True
+        white_moves = ''
+        white_moves += self.wpMoves() + self.rMoves()+ self.nMoves() + self.bMoves() + self.kMoves() + self.qMoves() + self.poss_castle_white()
+        self.writeMoveList('white_moves.txt', white_moves)
+
+        self.whiteTurn = False
+        black_moves = ''
+        black_moves += self.bpMoves() + self.rMoves()+ self.nMoves() + self.bMoves() + self.kMoves() + self.qMoves() + self.poss_castle_black()
+        self.writeMoveList('black_moves.txt', black_moves)
+
+    def make_move(self):
+        pass
+        self.whiteTurn = not self.whiteTurn
+
+    def generate_moves(self):
+        '''
+        Generates moves for current color. Returns an empty string if
+        checkmate.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
+
+        '''
+        
+        checking_pieces = self.check()
+        if len(checking_pieces) != 0: #king is in check
+            return self.in_check_gen(checking_pieces)
+        else:
+            return self.reg_gen()
+    
+    def in_check_gen(self, checking_pieces):
+        '''
+        Generates possible moves when king is in check
+
+        Parameters
+        ----------
+        checking_pieces : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        '''
+        if self.whiteTurn:
+            king_loc = self.king_coords('K')
+        else:
+            king_loc = self.king_coords('k')
+        all_moves = self.reg_gen()
+        all_list = [all_moves[i:i+4] for i in range(0, len(all_moves), 4)]
+        legal_moves = ''
+        # only one piece is attacking
+        if len(checking_pieces) == 3:
+            if checking_pieces[0].lower() != 'n' and checking_pieces[0].lower() != 'p' and checking_pieces[0].lower() != 'k': #attacking piece is not a knight
+                #block the attacking piece
+                legal_moves += self.block_check(all_list, checking_pieces, king_loc)
+            #capture attacking piece
+            legal_moves += self.take_check(all_list, checking_pieces)
+        #move king to safety
+        legal_moves += self.kMoves()
+        return legal_moves
+    
+    def take_check(self, moves, checking_pieces):
+        #accepts moves (array of all moves as str) and checking pieces
+        poss = []
+        square = checking_pieces[1:]
+        for move in moves:
+            c = move[2:]
+            if c == square:
+                poss.append(move)
+        return ''.join(poss)
+    
+    def block_check(self, moves, checking_pieces, king_loc):
+        print(checking_pieces)
+        print(king_loc)
+        legal_moves = ''
+        if checking_pieces[0].lower() == 'r' or (checking_pieces[0].lower() == 'q' and (king_loc[0] == checking_pieces[1] or king_loc[1] == checking_pieces[2])):
+            #print('looking for block ')
+            #same row
+            if king_loc[0] == checking_pieces[1]:
+                row = king_loc[0]
+                for move in moves:
+                    if move[2] == row:
+                        if (int(king_loc[1]) < int(move[3]) < int(checking_pieces[2])) or (int(checking_pieces[2]) < int(move[3]) < int(king_loc[1])):
+                            legal_moves += move
+            #same col
+            if king_loc[1] == checking_pieces[2]:
+                #print('same col')
+                col = king_loc[1]
+                for move in moves:
+                    if move[3] == col:
+                        if (int(king_loc[0]) < int(move[2]) < int(checking_pieces[1])) or (int(checking_pieces[1]) < int(move[2]) < int(king_loc[0])):
+                            legal_moves += move
+        elif checking_pieces[0].lower() == 'b' or checking_pieces[0].lower() == 'q':
+            crow = int(checking_pieces[1])
+            ccol = int(checking_pieces[2])
+            krow = int(king_loc[0])
+            kcol = int(king_loc[1])
+            #top left
+            blocking_squares = []
+            if crow < krow and ccol < kcol:
+                while crow + 1 != krow:
+                    ccol += 1
+                    crow += 1
+                    blocking_squares.append(str(crow) + str(ccol))
+            #bottom left
+            elif crow > krow and ccol < kcol:
+                while crow - 1 != krow:
+                    ccol += 1
+                    crow -= 1
+                    blocking_squares.append(str(crow) + str(ccol))
+            #top right
+            elif crow < krow and ccol > kcol:
+                while crow + 1 != krow:
+                    ccol -= 1
+                    crow += 1
+                    blocking_squares.append(str(crow) + str(ccol))
+            #bottom right
+            elif crow > krow and ccol > kcol:
+                while crow - 1 != krow:
+                        ccol -= 1
+                        crow -= 1
+                        blocking_squares.append(str(crow) + str(ccol))
+            for move in moves:
+                if move[-2:] in blocking_squares:
+                    legal_moves += move
+        return legal_moves
+        
+        
+    def reg_gen(self):
+        moves = ''
+        if self.whiteTurn:
+            moves += self.wpMoves()
+        else:
+            moves += self.bpMoves()
+        moves += self.rMoves()
+        moves += self.nMoves()
+        moves += self.bMoves()
+        moves += self.qMoves()  
+        return moves
+    
+    def check(self):
+        '''
         
 
-    def makeMove(self):
-        self.occupied = self.getOccupied()
-        llegal = ~(self.bb[self.id['P']] | self.bb[self.id['P']] | self.bb[self.id['P']] 
-                    | self.bb[self.id['P']] | self.bb[self.id['P']] | self.bb[self.id['P']]
-                    | self.bb[self.id['P']] )
-        l = self.wpMoves()
-        l += '\n' + self.bpMoves()
-        print('printing all bitboards')
-        for p in self.id:
-            print('printing ' + p)
-            
-            self.drawbb(p)
-        # p = 0
-        # for c in l:
-        #     print(c, end = '')
-        #     p += 1
-        #     if p == 4:
-        #         p = 0
-        #         print()
-        return l
+        Returns
+        -------
+        String with 3 chars denoting an attacking piece (eg P78).
+
+        '''
+        self.whiteTurn = not self.whiteTurn
+        if self.whiteTurn:
+            check_list = self.black_check()
+        else:
+            check_list = self.white_check()
+        self.whiteTurn = not self.whiteTurn
+        return check_list
+        
+    def black_check(self):
+        #print('in black check')
+        attack_list = ''
+        king_loc = self.king_coords('k')
+        p = self.wpMoves()
+        attack_list += self.attacking_king(p, king_loc, 'P')
+        r = self.rMoves()
+        attack_list += self.attacking_king(r, king_loc, 'R')
+        n = self.nMoves()
+        attack_list += self.attacking_king(n, king_loc, 'N')
+        b = self.bMoves()
+        attack_list += self.attacking_king(b, king_loc, 'B')
+        q = self.qMoves()
+        attack_list += self.attacking_king(q, king_loc, 'Q')
+        return attack_list
+        
+    def white_check(self):
+        attack_list = ''
+        king_loc = self.king_coords('K')
+        p = self.bpMoves()
+        attack_list += self.attacking_king(p, king_loc, 'p')
+        r = self.rMoves()
+        attack_list += self.attacking_king(r, king_loc, 'r')
+        n = self.nMoves()
+        attack_list += self.attacking_king(n, king_loc, 'n')
+        b = self.bMoves()
+        attack_list += self.attacking_king(b, king_loc, 'b')
+        q = self.qMoves()
+        attack_list += self.attacking_king(q, king_loc, 'q')
+        return attack_list
     
-    def possibleWhiteMoves(self):
-        return
-    
-    def possibleBlackMoves(self):
-        return
+    def attacking_king(self, move_list, king_coord, piece_checking):
+        moves = [move_list[i:i+4] for i in range(0, len(move_list), 4)]
+        attack_origin = ''
+        for move in moves:
+            if move[2:] == king_coord:
+                #print('attack founbd')
+                attack_origin += piece_checking + move[0:2]
+        return attack_origin
+        
+    def king_coords(self, king):
+        '''
+        Returns string of the xy location of the king based on the passed char
+
+        Returns
+        -------
+        str.
+
+        '''
+        index = self.trailingZeros(self.bb[self.id[king]])
+        coords = str(7 - index // 8) + str(7 - index % 8)
+        return coords
     
     def diagonalMoves(self, s):
         '''
@@ -161,7 +348,7 @@ class BB2():
         
         return (horizPoss & rankMask) | (vertPoss & fileMask)
     
-    def wpMoves(self, history=None):
+    def wpMoves(self, history=None, check=False):
         '''
         Generates white pawn moves.
 
@@ -177,12 +364,14 @@ class BB2():
 
         '''
         moveList = ''
+        check_poss = 0
         P = self.bb[self.id['P']]
         blackPieces = self.getBlackPieces()
         occ = self.getOccupied()
         empty = ~occ
         #capture right diagonal
         x = int((np.left_shift(P, seven)) & blackPieces & occ & ~rank8 & ~fileA)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y) #find index of least 1
@@ -192,6 +381,7 @@ class BB2():
         
         #capture left diagonal
         x = int((np.left_shift(P, nine)) & blackPieces & occ & ~rank8 & ~fileH)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
@@ -201,6 +391,7 @@ class BB2():
         
         #move one forward
         x = int((np.left_shift(P, eight)) & empty & ~rank8)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
@@ -210,6 +401,7 @@ class BB2():
         
         #move two forward (pawn still in initial position)
         x = int((np.left_shift(P, sixteen)) & empty & (np.left_shift(empty, eight)) & rank4)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
@@ -221,9 +413,10 @@ class BB2():
         # P, piece promotion (R, B, N, Q), y1, y2 (x coordinates are unneccessary)
         #pawn promotion: capture right
         x = int((np.left_shift(P, seven)) & blackPieces & occ & rank8 & ~fileA)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion right')
+            #print('promotion right')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8 - 1)
             y2 = str(7 - index % 8)
@@ -233,9 +426,10 @@ class BB2():
             
         #pawn promotion: capture left
         x = int((np.left_shift(P, nine)) & blackPieces & occ & rank8 & ~fileH)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion left')
+            #print('promotion left')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8 + 1)
             y2 = str(7 - index % 8)
@@ -245,9 +439,10 @@ class BB2():
             
         #pawn promotion: one forward
         x = int((np.left_shift(P, eight)) & ~occ & rank8)
+        check_poss |= x
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion forward')
+            #print('promotion forward')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8)
             y2 = str(7 - index % 8)
@@ -259,6 +454,7 @@ class BB2():
         #en passant to the right
         EP = np.uint64(self.en_passant())
         x = int(np.right_shift(P, one) & self.bb[self.id['p']] & rank5 & ~fileA & EP)
+        check_poss |= x
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
@@ -267,13 +463,13 @@ class BB2():
     
         #en passant to the left
         x = int(np.left_shift(P, one) & self.bb[self.id['p']] & rank5 & ~fileH & EP)
+        check_poss |= x
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'WE'
-        self.writeMoveList('whitePawn.txt', moveList)
-        
-        return moveList
+        #self.writeMoveList('whitePawn.txt', moveList)
+        return moveList#, check_poss
     
     def bpMoves(self, history=None):
         '''
@@ -339,7 +535,7 @@ class BB2():
         x = int((np.right_shift(p, seven)) & whitePieces & occ & rank1 & ~fileH)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion right')
+            #print('promotion right')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8 + 1)
             y2 = str(7 - index % 8)
@@ -351,7 +547,7 @@ class BB2():
         x = int((np.right_shift(p, nine)) & whitePieces & occ & rank1 & ~fileA)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion left')
+            #print('promotion left')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8 - 1)
             y2 = str(7 - index % 8)
@@ -363,7 +559,7 @@ class BB2():
         x = int((np.right_shift(p, eight)) & ~occ & rank1)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
-            print('promotion forward')
+            #print('promotion forward')
             index = self.trailingZeros(y) #find index of least 1
             y1 = str(7 - index % 8)
             y2 = str(7 - index % 8)
@@ -390,7 +586,7 @@ class BB2():
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
         
-        self.writeMoveList('blackPawn.txt', moveList)
+        #self.writeMoveList('blackPawn.txt', moveList)
         return moveList
     
     def bMoves(self):
@@ -422,7 +618,7 @@ class BB2():
                 j = poss & ~(poss - 1)
             B = B & ~i
             i = B & ~(B - 1)
-        self.writeMoveList('white_bishop.txt', moveList)
+        #self.writeMoveList('black_bishop.txt', moveList)
         return moveList
         
     def nMoves(self):
@@ -454,7 +650,7 @@ class BB2():
                 j = poss & ~(poss - 1)
             N = N & ~i
             i = N & ~(N - 1)
-        self.writeMoveList('white_knight.txt', moveList)
+        #self.writeMoveList('black_knight.txt', moveList)
         return moveList
     
     def rMoves(self):
@@ -484,7 +680,7 @@ class BB2():
                 j = poss & ~(poss - 1)
             R = R & ~i
             i = R & ~(R - 1)
-        self.writeMoveList('white_rook.txt', moveList)
+        #self.writeMoveList('black_rook.txt', moveList)
         return moveList
     
     def qMoves(self):
@@ -516,7 +712,7 @@ class BB2():
                 j = poss & ~(poss - 1)
             Q = Q & ~i
             i = Q & ~(Q - 1)
-        self.writeMoveList('white_queen.txt', moveList)
+        #self.writeMoveList('black_queen.txt', moveList)
         return moveList
         
     def kMoves(self):
@@ -524,21 +720,21 @@ class BB2():
         movePieces = self.getMyPieces()
         if self.whiteTurn:
             K = int(self.bb[self.id['K']])
+            safe = ~self.unsafeForWhite()
         else:
             K = int(self.bb[self.id['k']])
+            safe = ~self.unsafeForBlack()
         iLoc = self.trailingZeros(K)
         #print(iLoc)
         if iLoc > 9:
             poss = np.left_shift(kingMask, np.subtract(np.uint64(iLoc), nine))
         else:
             poss = np.right_shift(kingMask, np.subtract(nine, np.uint64(iLoc)))
-            #print(np.subtract(np.uint64(iLoc), nine))
-            #print('in first else', poss)
         if iLoc % 8 < 4:
             poss = poss & ~fileAB & ~movePieces
         else:
             poss = poss & ~fileGH & ~movePieces
-        poss = int(poss)
+        poss = int(poss & safe)
         j = poss & ~(poss - 1)
         while j != 0:
             index = self.trailingZeros(j)
@@ -547,7 +743,7 @@ class BB2():
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
-        self.writeMoveList('white_king.txt', moveList)
+        #self.writeMoveList('black_king.txt', moveList)
         return moveList
     
     
@@ -596,7 +792,7 @@ class BB2():
             if self.castle_wq and ((one << rook_castle[1]) != 0):
                 if (occ | (attacked & ~((one << six)))) & ((((one << four)) | (one << five) | (one << six))) == 0:
                     move_list += '7472'
-        self.writeMoveList('castling_white.txt', move_list)
+        #self.writeMoveList('castling_white.txt', move_list)
         return move_list
     
     def poss_castle_black(self):
@@ -613,8 +809,52 @@ class BB2():
             if self.castle_bq and ((one  << rook_castle[3]) != 0):
                 if (occ | (attacked & ~np.uint64(1 << 62))) & (((np.uint64(1 << 62)) | np.uint64(1 << 61) | np.uint64(1 << 60))) == 0:
                     move_list += '0402'
-        self.writeMoveList('castling_black.txt', move_list)
+        #self.writeMoveList('castling_black.txt', move_list)
         return move_list
+    
+    def parse_fen(self, fen):
+        fen_elements = fen.split(' ')
+        self.readPosition(fen_elements[0])
+        self.set_turn(fen_elements[1])
+        self.castling_rights(fen_elements[2])
+        self.ep_target(fen_elements[3])
+    
+    def ep_target(self, ep):
+        if ep == '-':
+            return
+        col = ord(ep[0]) - 97 #calculate using ASCII
+        row = 8 - int(ep[1])
+        if row == 5: #white pawn moved forward 2
+            s = str(row + 1) + str(col)+ str(row - 1)+ str(col)
+        else:
+            s = str(row - 1) + str(col)+ str(row + 1)+ str(col)
+        self.move_history.append(s)
+    
+    def castling_rights(self, c):
+        if 'K' in c:
+            self.castle_wk = True
+        if 'Q' in c:
+            self.castle_wq = True
+        if 'k' in c:
+            self.castle_bk = True
+        if 'q' in c:
+            self.castle_bq = True
+    
+    def set_turn(self, turn):
+        '''
+        
+
+        Parameters
+        ----------
+        turn : char
+            DESCRIPTION.
+
+        Returns
+        -------
+        None.
+
+        '''
+        self.whiteTurn = (turn.lower() == 'w')
     
     def readPosition(self, pos):
         '''
@@ -628,8 +868,7 @@ class BB2():
 
         Returns
         -------
-        bb : uint64 list
-            Contains 12 integers that each represent a certain piece type.
+        None.
 
         '''
         bb = [0 for i in range(12)]
@@ -647,11 +886,19 @@ class BB2():
             if char != '/':
                 spot /= 2
         b = [np.uint64(num) for num in bb]
-        return b
+        self.bb = b
+        
+    def remove_king(self, king_char):
+        hold_bb = self.bb[self.id[king_char]]
+        self.bb[self.id[king_char]] = zero
+        return hold_bb
+        
+    def restore_king(self, king_bb, king_char):
+        self.bb[self.id[king_char]] = king_bb
 
     def unsafeForBlack(self):
-        occ = self.getOccupied()
-        
+        #remove black king
+        k_bb = self.remove_king('k')
         #pawn
         P = self.bb[self.id['P']]
         #pawn capture right
@@ -708,11 +955,33 @@ class BB2():
         else:
             poss = poss & ~fileGH
         unsafe |= poss
+        self.restore_king(k_bb, 'k')
         return unsafe
     
+    
+    def piece_type(self, square):
+        '''
+        Returns the piece type occupying square for check
+
+        Parameters
+        ----------
+        square : int
+            int value of square on BB (power of 2).
+
+        Returns
+        -------
+        None.
+
+        '''
+        for piece, num in self.id.items():
+            result = square & self.bb[num]
+            if result != 0:
+                return piece
+            
+    
     def unsafeForWhite(self):
-        occ = self.getOccupied()
-        
+        #remove white king
+        k_bb = self.remove_king('K')
         #pawn
         P = self.bb[self.id['p']]
         #pawn capture right
@@ -769,6 +1038,7 @@ class BB2():
         else:
             poss = poss & ~fileGH
         unsafe |= poss
+        self.restore_king(k_bb, 'K')
         return unsafe
         
     def reverseBits(self, n):
@@ -785,8 +1055,6 @@ class BB2():
             Integer resulting from reversal operation.
 
         '''
-        #print('Passed in reverseBits:',n)
-        #print('{:064b}'.format(n)[::-1], 2)
         return int('{:064b}'.format(n)[::-1], 2)
         
     def unsignedReverse(self, n):
@@ -861,9 +1129,6 @@ class BB2():
         Draws the BB representation of n.
 
         '''
-        # print(n)
-        # print(bin(n))
-        # print(len(bin(n)) - 2)
         rep = [['0' for i in range(8)] for j in range(8)]
         st = bin(n)[2::]
         r = 7
@@ -884,7 +1149,8 @@ class BB2():
         self.whiteTurn = not self.whiteTurn
 
     def writeMoveList(self, file, moves):
-        out = open('moveGen/' + 'case_0_' + file, 'w')
+        m = 'case_6_'
+        out = open('moveGen/' + 'check' + file, 'w')
         for i in range(len(moves)):
             if i % 4 == 0 and i != 0:
                 out.write('\n' + moves[i])#, end = '')
@@ -908,8 +1174,8 @@ class BB2():
                 | self.bb[self.id['r']] | self.bb[self.id['k']])
     
     def getOccupied(self):
-        return (self.getWhitePieces() | self.getBlackPieces()
-                | self.bb[self.id['K']] | self.bb[self.id['k']])
+        return (self.getWhitePieces() | self.getBlackPieces())
+                #| self.bb[self.id['K']] | self.bb[self.id['k']])
     
 
     
