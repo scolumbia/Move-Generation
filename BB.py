@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun  9 18:39:41 2021
+Old BB, no units.
 
 @author: sophiecolumbia
 """
