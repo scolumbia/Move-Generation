@@ -43,6 +43,8 @@ class RepConversion():
         c = 0
         array = [[' ' for i in range(8)] for j in range(8)]
         for f in fen:
+            if f == ' ':
+                break
             if f == '/':
                 r += 1
                 c = 0

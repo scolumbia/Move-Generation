@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Dec 26 15:27:21 2021
-
-@author: sophiecolumbia
-"""
 
 """
 Created on Wed Jun  9 18:39:41 2021
@@ -66,18 +61,7 @@ class BB2():
     def __init__(self, fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'):
         '''
         Creates an instance of a set of bitbords.
-
-        Parameters
-        ----------
-        fen : str, optional
-            DESCRIPTION. The default is 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR'.
-        whiteTurn : bool, optional
-            DESCRIPTION. The default is True. When True, it's white's turn. When False, is black's turn
-            
-
-        Returns
-        -------
-        None.
+        Accepts FEN notation of current game's state.
         '''
         self.id = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5,
                        'P': 6, 'N': 7, 'B': 8, 'R': 9, 'Q': 10, 'K': 11}
@@ -93,6 +77,9 @@ class BB2():
         self.black_in_check = []
         
     def test_generate_moves(self):
+        '''
+        Generates all possible moves (both white and black) and writes them out to separate files.
+        '''
         self.whiteTurn = True
         white_moves = ''
         white_moves += self.wpMoves() + self.rMoves()+ self.nMoves() + self.bMoves() + self.kMoves() + self.qMoves() + self.poss_castle_white()
@@ -104,21 +91,16 @@ class BB2():
         self.writeMoveList('black_moves.txt', black_moves)
 
     def make_move(self):
+        '''
+        Beginnings for the code that actually makes a move.
+        '''
         pass
         self.whiteTurn = not self.whiteTurn
 
     def generate_moves(self):
         '''
-        Generates moves for current color. Returns an empty string if
-        checkmate.
-
-        Returns
-        -------
-        TYPE
-            DESCRIPTION.
-
+        Generates moves for current color. Returns an empty string if checkmate.
         '''
-        
         checking_pieces = self.check()
         if len(checking_pieces) != 0: #king is in check
             return self.in_check_gen(checking_pieces)
@@ -127,17 +109,8 @@ class BB2():
     
     def in_check_gen(self, checking_pieces):
         '''
-        Generates possible moves when king is in check
-
-        Parameters
-        ----------
-        checking_pieces : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        Generates possible moves when king is in check.
+        Takes checking_pieces (str), result of check function. E.g. b56
         '''
         if self.whiteTurn:
             king_loc = self.king_coords('K')
@@ -158,7 +131,10 @@ class BB2():
         return legal_moves
     
     def take_check(self, moves, checking_pieces):
-        #accepts moves (array of all moves as str) and checking pieces
+        '''
+        Returns as a str the moves in which would result in the checking piece being taken.
+        Accepts moves (list of all moves as str) and checking pieces (str)
+        '''
         poss = []
         square = checking_pieces[1:]
         for move in moves:
@@ -168,6 +144,10 @@ class BB2():
         return ''.join(poss)
     
     def block_check(self, moves, checking_pieces, king_loc):
+        '''
+        Returns as a str the moves in which would result in the checking piece's attack being blocked.
+        Accepts moves (list of all moves as str) and checking pieces (str)
+        '''
         print(checking_pieces)
         print(king_loc)
         legal_moves = ''
@@ -223,8 +203,10 @@ class BB2():
                     legal_moves += move
         return legal_moves
         
-        
     def reg_gen(self):
+        '''
+        Move generation function for when king is not in check.
+        '''
         moves = ''
         if self.whiteTurn:
             moves += self.wpMoves()
@@ -238,12 +220,7 @@ class BB2():
     
     def check(self):
         '''
-        
-
-        Returns
-        -------
-        String with 3 chars denoting an attacking piece (eg P78).
-
+        Generates a string with 3 chars denoting each attacking piece (eg P78).
         '''
         self.whiteTurn = not self.whiteTurn
         if self.whiteTurn:
@@ -254,6 +231,10 @@ class BB2():
         return check_list
         
     def black_check(self):
+        '''
+        Finds all moves in which the target is the location of the black king.
+        Returns the attack list, str with 3 chars denoting attacking piece.
+        '''
         #print('in black check')
         attack_list = ''
         king_loc = self.king_coords('k')
@@ -270,6 +251,10 @@ class BB2():
         return attack_list
         
     def white_check(self):
+        '''
+        Finds all moves in which the target is the location of the white king.
+        Returns the attack list, str with 3 chars denoting attacking piece.
+        '''
         attack_list = ''
         king_loc = self.king_coords('K')
         p = self.bpMoves()
@@ -285,6 +270,9 @@ class BB2():
         return attack_list
     
     def attacking_king(self, move_list, king_coord, piece_checking):
+        '''
+        Returns a str, with every 3 chars denoting an attacking piece's type and location.
+        '''
         moves = [move_list[i:i+4] for i in range(0, len(move_list), 4)]
         attack_origin = ''
         for move in moves:
@@ -295,12 +283,7 @@ class BB2():
         
     def king_coords(self, king):
         '''
-        Returns string of the xy location of the king based on the passed char
-
-        Returns
-        -------
-        str.
-
+        Returns string of the xy location of the king based on the passed char ('k' or 'K')
         '''
         index = self.trailingZeros(self.bb[self.id[king]])
         coords = str(7 - index // 8) + str(7 - index % 8)
@@ -308,17 +291,8 @@ class BB2():
     
     def diagonalMoves(self, s):
         '''
-        Helper function for move generation for bishops and queens.
-
-        Parameters
-        ----------
-        s : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        Helper function for move generation for bishops and queens. Calculates rays of attacks.
+        Accepts s, int of # of trailing zeroes of sliding piece to be checked.
         '''
         diagMask = diagonalMasks[(s // 8) + (s % 8)]
         antiMask = antiDiagonalMasks[(s // 8) + 7 - (s % 8)]
@@ -334,6 +308,10 @@ class BB2():
         return (diagPoss & diagMask) | (antiPoss & antiMask)
         
     def rowMoves(self, s):
+        '''
+        Helper function for move generation for rooks and queens. Calculates rays of attacks.
+        Accepts s, int of # of trailing zeroes of sliding piece to be checked.
+        '''
         rankMask = rankMasks[s // 8]
         fileMask = fileMasks[7 - s % 8]
         binRep = np.uint64(1 << s)
@@ -351,17 +329,7 @@ class BB2():
     def wpMoves(self, history=None, check=False):
         '''
         Generates white pawn moves.
-
-        Parameters
-        ----------
-        history : TYPE, optional
-            DESCRIPTION. The default is None.
-
-        Returns
-        -------
-        moveList : str
-            String, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
-
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
         '''
         moveList = ''
         check_poss = 0
@@ -474,19 +442,7 @@ class BB2():
     def bpMoves(self, history=None):
         '''
         Generates black pawn moves.
-
-        Parameters
-        ----------
-        history : TYPE, optional
-            DESCRIPTION. The default is None.
-        turn : TYPE, optional
-            DESCRIPTION. The default is ''.
-
-        Returns
-        -------
-        moveList : str
-            String, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
-
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
         '''
         moveList = ''
         whitePieces = self.getWhitePieces()
@@ -592,12 +548,7 @@ class BB2():
     def bMoves(self):
         '''
         Generates bishop moves.
-
-        Returns
-        -------
-        moveList : TYPE
-            DESCRIPTION.
-
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
         '''
         moveList = ''
         movePieces = self.getMyPieces()
@@ -622,6 +573,10 @@ class BB2():
         return moveList
         
     def nMoves(self):
+        '''
+        Generates knight moves.
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
+        '''
         moveList = ''
         movePieces = self.getMyPieces()
         if self.whiteTurn:
@@ -656,11 +611,7 @@ class BB2():
     def rMoves(self):
         '''
         Generates rook moves.
-
-        Returns
-        -------
-        None.
-
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
         '''
         moveList = ''
         movePieces = self.getMyPieces()
@@ -685,12 +636,8 @@ class BB2():
     
     def qMoves(self):
         '''
-        
-
-        Returns
-        -------
-        None.
-
+        Generates queen moves.
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
         '''
         moveList = ''
         movePieces = self.getMyPieces()
@@ -716,6 +663,10 @@ class BB2():
         return moveList
         
     def kMoves(self):
+        '''
+        Generates king moves.
+        Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
+        '''
         moveList = ''
         movePieces = self.getMyPieces()
         if self.whiteTurn:
@@ -749,12 +700,7 @@ class BB2():
     
     def en_passant(self):
         '''
-        Checks to see if an en passant is possible
-
-        Returns
-        -------
-        None.
-
+        Checks to see if an en passant is possible. 0 if impossible, file mask otherwise.
         '''
         board = int(self.getOccupied())
         if len(self.move_history) > 0:
@@ -773,12 +719,7 @@ class BB2():
     def poss_castle_white(self):
         '''
         "One may not castle out of, through, or into check"
-
-        Returns
-        -------
-        move_list : TYPE
-            DESCRIPTION.
-
+        Calculates white castle moves, if possible.
         '''
         move_list = ''
         occ = self.getOccupied()
@@ -796,7 +737,9 @@ class BB2():
         return move_list
     
     def poss_castle_black(self):
-        pass
+        '''
+        Calculates black castle moves, if possible.
+        '''
         move_list = ''
         occ = self.getOccupied()
         k = self.bb[self.id['k']]
@@ -813,6 +756,9 @@ class BB2():
         return move_list
     
     def parse_fen(self, fen):
+        '''
+        Interprets FEN from creation of BB object.
+        '''
         fen_elements = fen.split(' ')
         self.readPosition(fen_elements[0])
         self.set_turn(fen_elements[1])
@@ -820,9 +766,12 @@ class BB2():
         self.ep_target(fen_elements[3])
     
     def ep_target(self, ep):
+        '''
+        Adds to move_history the en passant target square from FEN input.
+        '''
         if ep == '-':
             return
-        col = ord(ep[0]) - 97 #calculate using ASCII
+        col = ord(ep[0]) - 97 #calculate using ASCII value
         row = 8 - int(ep[1])
         if row == 5: #white pawn moved forward 2
             s = str(row + 1) + str(col)+ str(row - 1)+ str(col)
@@ -831,6 +780,9 @@ class BB2():
         self.move_history.append(s)
     
     def castling_rights(self, c):
+        '''
+        Sets castling rights based upon FEN.
+        '''
         if 'K' in c:
             self.castle_wk = True
         if 'Q' in c:
@@ -842,34 +794,14 @@ class BB2():
     
     def set_turn(self, turn):
         '''
-        
-
-        Parameters
-        ----------
-        turn : char
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
+        Sets turn based upon turn in FEN notation.
         '''
         self.whiteTurn = (turn.lower() == 'w')
     
     def readPosition(self, pos):
         '''
         Generates bitboards based on FEN. Most significant bit is the top left corner of the board (A8)
-        and 2nd most sigbit is B8. LSB is H1.
-
-        Parameters
-        ----------
-        pos : str
-            Board represented in FEN.
-
-        Returns
-        -------
-        None.
-
+        and 2nd most sigbit is B8. LSB is H1. Pos is str (FEN board portion)
         '''
         bb = [0 for i in range(12)]
         spot = 2**63
@@ -889,14 +821,26 @@ class BB2():
         self.bb = b
         
     def remove_king(self, king_char):
+        '''
+        Removes king from BB for calculating safe squares for king to move to.
+        king_char: 'k' or 'K', depending upon which color is to be removed.
+        Returns int denoting prior king's BB.
+        '''
         hold_bb = self.bb[self.id[king_char]]
         self.bb[self.id[king_char]] = zero
         return hold_bb
         
     def restore_king(self, king_bb, king_char):
+        '''
+        Replaces king on BB. Accepts int denoting prior king's BB and char of which
+        king is to be restored.
+        '''
         self.bb[self.id[king_char]] = king_bb
 
     def unsafeForBlack(self):
+        '''
+        Generates BB of squares unsafe for black king to move to.
+        '''
         #remove black king
         k_bb = self.remove_king('k')
         #pawn
@@ -961,17 +905,9 @@ class BB2():
     
     def piece_type(self, square):
         '''
-        Returns the piece type occupying square for check
-
-        Parameters
-        ----------
-        square : int
-            int value of square on BB (power of 2).
-
-        Returns
-        -------
-        None.
-
+        Returns the piece type occupying square for check.
+        square is int value of square on BB (a power of 2).
+        Returns char of piece occupying.
         '''
         for piece, num in self.id.items():
             result = square & self.bb[num]
@@ -980,6 +916,9 @@ class BB2():
             
     
     def unsafeForWhite(self):
+        '''
+        Generates BB of squares unsafe for white king to move to.
+        '''
         #remove white king
         k_bb = self.remove_king('K')
         #pawn
@@ -1043,37 +982,20 @@ class BB2():
         
     def reverseBits(self, n):
         '''
-        Reverses the order of bits in a number.
-        Parameters
-        ----------
-        n : int
-            number whose bits are to be reversed
-
-        Returns
-        -------
-        int
-            Integer resulting from reversal operation.
-
+        Reverses the order of bits in an int.
         '''
         return int('{:064b}'.format(n)[::-1], 2)
         
     def unsignedReverse(self, n):
+        '''
+        Reverses the order of a bits in a uint.
+        '''
         #print('type of n passed in unsignedReverse:', type(n))
         return np.uint64(int('{:064b}'.format(n)[::-1], 2))
 
     def trailingZeros(self, num):
         '''
-        Counts the number of trailing zeros in a binary representation of a number.
-        Parameters
-        ----------
-        num : int
-            Number to have trailing zeros calculuated.
-
-        Returns
-        -------
-        int
-            Count of trailing zeros.
-
+        Returns the count of the number of trailing zeros in a binary representation of an int.
         '''
         s = bin(num)[2::]
         return len(s) - len(s.rstrip('0'))
@@ -1081,16 +1003,7 @@ class BB2():
     def drawbb(self, piece):
         '''
         Draws bitboard of specified piece in a 2D array.
-
-        Parameters
-        ----------
-        piece : char
-            Specified piece to be drawn (as denoted in FEN).
-
-        Returns
-        -------
-        None.
-
+        Accepts str of specified piece to be drawn.
         '''
         rep = [['' for i in range(8)] for j in range(8)]
         for i in range(64):
@@ -1127,7 +1040,6 @@ class BB2():
         '''
         Accepts an integer n.
         Draws the BB representation of n.
-
         '''
         rep = [['0' for i in range(8)] for j in range(8)]
         st = bin(n)[2::]
@@ -1143,12 +1055,21 @@ class BB2():
             print(row)
             
     def getTurn(self):
+        '''
+        Returns True if white turn, False if black turn.
+        '''
         return self.whiteTurn
     
     def changeTurn(self):
+        '''
+        Changes current color's turn.
+        '''
         self.whiteTurn = not self.whiteTurn
 
     def writeMoveList(self, file, moves):
+        '''
+        Writes moves to output file, each line has one move with 4 chars.
+        '''
         m = 'case_6_'
         out = open('moveGen/' + 'check' + file, 'w')
         for i in range(len(moves)):
@@ -1159,21 +1080,33 @@ class BB2():
         out.close()
         
     def getMyPieces(self):
+        '''
+        Returns BB of all pieces of color whose move it is.
+        '''
         if self.whiteTurn:
             return self.getWhitePieces()
         return self.getBlackPieces()
 
     def getWhitePieces(self):
+        '''
+        Returns BB of all white pieces.
+        '''
         return (self.bb[self.id['P']] | self.bb[self.id['N']]
                 | self.bb[self.id['B']] | self.bb[self.id['Q']]
                 | self.bb[self.id['R']] | self.bb[self.id['K']])
 
     def getBlackPieces(self):
+        '''
+        Returns BB of all black pieces.
+        '''
         return (self.bb[self.id['p']] | self.bb[self.id['n']]
                 | self.bb[self.id['b']] | self.bb[self.id['q']]
                 | self.bb[self.id['r']] | self.bb[self.id['k']])
     
     def getOccupied(self):
+        '''
+        Returns BB of all occupied squares.
+        '''
         return (self.getWhitePieces() | self.getBlackPieces())
                 #| self.bb[self.id['K']] | self.bb[self.id['k']])
     
