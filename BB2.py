@@ -560,7 +560,7 @@ class BB2():
         i = B & ~(B - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = int(self.diagonalMoves(iLoc) & ~movePieces)
+            poss = self.b_BB(iLoc, ~movePieces) #poss = int(self.diagonalMoves(iLoc) & ~movePieces)
             #self.drawBin(poss)
             j = poss & ~(poss - 1)
             while (j != 0):
@@ -573,6 +573,13 @@ class BB2():
         #self.writeMoveList('black_bishop.txt', moveList)
         return moveList
         
+    def b_BB(self, square, all_possible):
+        '''
+        Calculates and returns the bitboard for possible bishop moves.
+        Accepts square (calculated by # of trailing zeroes) and bb of squares for which calculated moves must exist within.
+        '''
+        return int(self.diagonalMoves(square) & all_possible)
+
     def nMoves(self):
         '''
         Generates knight moves.
@@ -587,15 +594,7 @@ class BB2():
         i = N & ~(N - 1)
         while i != 0:
             iLoc = self.trailingZeros(i)
-            if iLoc > 18:
-                poss = np.left_shift(knightMask, np.subtract(np.uint64(iLoc), eighteen))
-            else:
-                poss = np.right_shift(knightMask, np.subtract(eighteen, np.uint64(iLoc)))
-            if iLoc % 8 < 4:
-                poss = poss & ~fileAB & ~movePieces
-            else:
-                poss = poss & ~fileGH & ~movePieces
-            poss = int(poss)
+            poss = self.n_BB(iLoc, ~movePieces)
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
@@ -608,6 +607,21 @@ class BB2():
             i = N & ~(N - 1)
         #self.writeMoveList('black_knight.txt', moveList)
         return moveList
+
+    def n_BB(self, square, all_possible):
+        '''
+        Calculates and returns the bitboard for possible knight moves.
+        Accepts square (calculated by # of trailing zeroes) and bb of squares for which calculated moves must exist within.
+        '''
+        if square > 18:
+            poss = np.left_shift(knightMask, np.subtract(np.uint64(square), eighteen))
+        else:
+            poss = np.right_shift(knightMask, np.subtract(eighteen, np.uint64(square)))
+        if square % 8 < 4:
+            poss = poss & ~fileAB & all_possible
+        else:
+            poss = poss & ~fileGH & all_possible
+        return int(poss)
     
     def rMoves(self):
         '''
@@ -623,7 +637,7 @@ class BB2():
         i = R & ~(R - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = int(self.rowMoves(iLoc) & ~movePieces)
+            poss = self.r_BB(iLoc, ~movePieces) #poss = int(self.rowMoves(iLoc) & ~movePieces)
             j = poss & ~(poss - 1)
             while (j != 0):
                 index = self.trailingZeros(j)
@@ -634,6 +648,13 @@ class BB2():
             i = R & ~(R - 1)
         #self.writeMoveList('black_rook.txt', moveList)
         return moveList
+
+    def r_BB(self, square, all_possible):
+        '''
+        Calculates and returns the bitboard for possible rook moves.
+        Accepts square (calculated by # of trailing zeroes) and bb of squares for which calculated moves must exist within.
+        '''
+        return int(self.rowMoves(square) & all_possible)
     
     def qMoves(self):
         '''
@@ -649,7 +670,7 @@ class BB2():
         i = Q & ~(Q - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = int((self.rowMoves(iLoc) | self.diagonalMoves(iLoc)) & ~movePieces)
+            poss = self.q_BB(iLoc, ~movePieces) #poss = int((self.rowMoves(iLoc) | self.diagonalMoves(iLoc)) & ~movePieces)
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
@@ -662,6 +683,13 @@ class BB2():
             i = Q & ~(Q - 1)
         #self.writeMoveList('black_queen.txt', moveList)
         return moveList
+
+    def q_BB(self, square, all_possible):
+        '''
+        Calculates and returns the bitboard for possible queen moves.
+        Accepts square (calculated by # of trailing zeroes) and bb of squares for which calculated moves must exist within.
+        '''
+        return int((self.rowMoves(square) | self.diagonalMoves(square)) & all_possible)
         
     def kMoves(self):
         '''
@@ -678,15 +706,7 @@ class BB2():
             safe = ~self.unsafeForBlack()
         iLoc = self.trailingZeros(K)
         #print(iLoc)
-        if iLoc > 9:
-            poss = np.left_shift(kingMask, np.subtract(np.uint64(iLoc), nine))
-        else:
-            poss = np.right_shift(kingMask, np.subtract(nine, np.uint64(iLoc)))
-        if iLoc % 8 < 4:
-            poss = poss & ~fileAB & ~movePieces
-        else:
-            poss = poss & ~fileGH & ~movePieces
-        poss = int(poss & safe)
+        poss = self.k_BB(iLoc, ~movePieces, safe)
         j = poss & ~(poss - 1)
         while j != 0:
             index = self.trailingZeros(j)
@@ -698,6 +718,20 @@ class BB2():
         #self.writeMoveList('black_king.txt', moveList)
         return moveList
     
+    def k_BB(self, square, all_possible, safe_squares):
+        '''
+        Calculates and returns the bitboard for possible king moves, regardless of safety.
+        Accepts square (calculated by # of trailing zeroes) and bb of squares for which calculated moves must exist within.
+        '''
+        if square > 9:
+            poss = np.left_shift(kingMask, np.subtract(np.uint64(square), nine))
+        else:
+            poss = np.right_shift(kingMask, np.subtract(nine, np.uint64(square)))
+        if square % 8 < 4:
+            poss = poss & ~fileAB & all_possible
+        else:
+            poss = poss & ~fileGH & all_possible
+        return int(poss & safe_squares)
     
     def en_passant(self):
         '''
