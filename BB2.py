@@ -91,13 +91,6 @@ class BB2():
         black_moves += self.bpMoves() + self.rMoves()+ self.nMoves() + self.bMoves() + self.kMoves() + self.qMoves() + self.poss_castle_black()
         self.writeMoveList('black_moves.txt', black_moves)
 
-    def make_move(self):
-        '''
-        Beginnings for the code that actually makes a move.
-        '''
-        pass
-        self.whiteTurn = not self.whiteTurn
-
     def generate_moves(self):
         '''
         Generates moves for current color. Returns an empty string if checkmate.
@@ -231,24 +224,36 @@ class BB2():
         self.whiteTurn = not self.whiteTurn
         return check_list
         
-    def black_check(self):
+    def pieces_checking_black(self):
         '''
         Finds all moves in which the target is the location of the black king.
         Returns the attack list, str with 3 chars denoting attacking piece.
         '''
+        pass
         #print('in black check')
         attack_list = ''
-        king_loc = self.king_coords('k')
-        p = self.wpMoves()
-        attack_list += self.attacking_king(p, king_loc, 'P')
-        r = self.rMoves()
-        attack_list += self.attacking_king(r, king_loc, 'R')
-        n = self.nMoves()
-        attack_list += self.attacking_king(n, king_loc, 'N')
-        b = self.bMoves()
-        attack_list += self.attacking_king(b, king_loc, 'B')
-        q = self.qMoves()
-        attack_list += self.attacking_king(q, king_loc, 'Q')
+        k_loc = self.trailingZeros(self.bb[self.id['k']])
+        #P = #TODO
+        if P & k_loc != 0:
+            #king is in check
+            pass
+
+        N = self.n_BB(k_loc, self.bb[self.id['N']]) #pretend king is a knight, see if knight moves from king square land on a white knight
+        if N != 0:
+            #king is being checked by a white knight
+            attack_list += 'N' # +square
+        R = self.r_BB(k_loc, self.bb[self.id['R']])
+        if R != 0:
+            #king is being checked by a white rook
+            attack_list += 'R' # +square
+        B = self.b_BB(k_loc, self.bb[self.id['B']])
+        if B != 0:
+            #king is being checked by a white bishop
+            attack_list += 'B' # +square
+        Q = self.q_BB(k_loc, self.bb[self.id['Q']])
+        if Q != 0:
+            #king is being checked by a white queen
+            attack_list += 'Q' # +square
         return attack_list
         
     def white_check(self):
@@ -282,13 +287,11 @@ class BB2():
                 attack_origin += piece_checking + move[0:2]
         return attack_origin
         
-    def king_coords(self, king):
+    def king_trailing_zeros(self, king):
         '''
         Returns string of the xy location of the king based on the passed char ('k' or 'K')
         '''
-        index = self.trailingZeros(self.bb[self.id[king]])
-        coords = str(7 - index // 8) + str(7 - index % 8)
-        return coords
+        return self.trailingZeros(self.bb[self.id[king]])
     
     def diagonalMoves(self, s):
         '''
