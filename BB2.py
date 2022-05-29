@@ -145,56 +145,6 @@ class BB2():
         print(checking_pieces)
         print(king_loc)
         legal_moves = ''
-        if checking_pieces[0].lower() == 'r' or (checking_pieces[0].lower() == 'q' and (king_loc[0] == checking_pieces[1] or king_loc[1] == checking_pieces[2])):
-            #print('looking for block ')
-            #same row
-            if king_loc[0] == checking_pieces[1]:
-                row = king_loc[0]
-                for move in moves:
-                    if move[2] == row:
-                        if (int(king_loc[1]) < int(move[3]) < int(checking_pieces[2])) or (int(checking_pieces[2]) < int(move[3]) < int(king_loc[1])):
-                            legal_moves += move
-            #same col
-            if king_loc[1] == checking_pieces[2]:
-                #print('same col')
-                col = king_loc[1]
-                for move in moves:
-                    if move[3] == col:
-                        if (int(king_loc[0]) < int(move[2]) < int(checking_pieces[1])) or (int(checking_pieces[1]) < int(move[2]) < int(king_loc[0])):
-                            legal_moves += move
-        elif checking_pieces[0].lower() == 'b' or checking_pieces[0].lower() == 'q':
-            crow = int(checking_pieces[1])
-            ccol = int(checking_pieces[2])
-            krow = int(king_loc[0])
-            kcol = int(king_loc[1])
-            #top left
-            blocking_squares = []
-            if crow < krow and ccol < kcol:
-                while crow + 1 != krow:
-                    ccol += 1
-                    crow += 1
-                    blocking_squares.append(str(crow) + str(ccol))
-            #bottom left
-            elif crow > krow and ccol < kcol:
-                while crow - 1 != krow:
-                    ccol += 1
-                    crow -= 1
-                    blocking_squares.append(str(crow) + str(ccol))
-            #top right
-            elif crow < krow and ccol > kcol:
-                while crow + 1 != krow:
-                    ccol -= 1
-                    crow += 1
-                    blocking_squares.append(str(crow) + str(ccol))
-            #bottom right
-            elif crow > krow and ccol > kcol:
-                while crow - 1 != krow:
-                        ccol -= 1
-                        crow -= 1
-                        blocking_squares.append(str(crow) + str(ccol))
-            for move in moves:
-                if move[-2:] in blocking_squares:
-                    legal_moves += move
         return legal_moves
         
     def reg_gen(self):
@@ -216,12 +166,10 @@ class BB2():
         '''
         Generates a string with 3 chars denoting each attacking piece (eg P78).
         '''
-        self.whiteTurn = not self.whiteTurn
         if self.whiteTurn:
-            check_list = self.black_check()
+            check_list = self.pieces_checking_white()
         else:
-            check_list = self.white_check()
-        self.whiteTurn = not self.whiteTurn
+            check_list = self.pieces_checking_black()
         return check_list
         
     def pieces_checking_black(self):
@@ -229,15 +177,14 @@ class BB2():
         Finds all moves in which the target is the location of the black king.
         Returns the attack list, str with 3 chars denoting attacking piece.
         '''
-        pass
-        #print('in black check')
         attack_list = ''
         k_loc = self.trailingZeros(self.bb[self.id['k']])
-        #P = #TODO
-        if P & k_loc != 0:
-            #king is in check
-            pass
-
+        k_bb = self.bb[self.id['k']]
+        Pl = np.right_shift(k_bb, seven) & self.bb[self.id['P']]
+        Pr = np.right_shift(k_bb, nine) & self.bb[self.id['P']]
+        if (Pl | Pr) != 0:
+            #king is being checked by a black pawn
+            attack_list += 'p'
         N = self.n_BB(k_loc, self.bb[self.id['N']]) #pretend king is a knight, see if knight moves from king square land on a white knight
         if N != 0:
             #king is being checked by a white knight
@@ -256,23 +203,35 @@ class BB2():
             attack_list += 'Q' # +square
         return attack_list
         
-    def white_check(self):
+    def pieces_checking_white(self):
         '''
         Finds all moves in which the target is the location of the white king.
         Returns the attack list, str with 3 chars denoting attacking piece.
         '''
         attack_list = ''
-        king_loc = self.king_coords('K')
-        p = self.bpMoves()
-        attack_list += self.attacking_king(p, king_loc, 'p')
-        r = self.rMoves()
-        attack_list += self.attacking_king(r, king_loc, 'r')
-        n = self.nMoves()
-        attack_list += self.attacking_king(n, king_loc, 'n')
-        b = self.bMoves()
-        attack_list += self.attacking_king(b, king_loc, 'b')
-        q = self.qMoves()
-        attack_list += self.attacking_king(q, king_loc, 'q')
+        K_loc = self.trailingZeros(self.bb[self.id['K']])
+        K_bb = self.bb[self.id['K']]
+        pr = np.left_shift(K_bb, seven) & self.bb[self.id['p']]
+        pl = np.left_shift(K_bb, nine) & self.bb[self.id['p']]
+        if (pr | pl) != 0:
+            #king is being checked by a black pawn
+            attack_list += 'p'
+        n = self.n_BB(K_loc, self.bb[self.id['n']]) #pretend king is a knight, see if knight moves from king square land on a white knight
+        if n != 0:
+            #king is being checked by a black knight
+            attack_list += 'n' # +square
+        r = self.r_BB(K_loc, self.bb[self.id['r']])
+        if r != 0:
+            #king is being checked by a black rook
+            attack_list += 'r' # +square
+        b = self.b_BB(K_loc, self.bb[self.id['b']])
+        if b != 0:
+            #king is being checked by a black bishop
+            attack_list += 'b' # +square
+        q = self.q_BB(K_loc, self.bb[self.id['q']])
+        if q != 0:
+            #king is being checked by a black queen
+            attack_list += 'q' # +square
         return attack_list
     
     def attacking_king(self, move_list, king_coord, piece_checking):
@@ -283,15 +242,9 @@ class BB2():
         attack_origin = ''
         for move in moves:
             if move[2:] == king_coord:
-                #print('attack founbd')
+                #print('attack found')
                 attack_origin += piece_checking + move[0:2]
         return attack_origin
-        
-    def king_trailing_zeros(self, king):
-        '''
-        Returns string of the xy location of the king based on the passed char ('k' or 'K')
-        '''
-        return self.trailingZeros(self.bb[self.id[king]])
     
     def diagonalMoves(self, s):
         '''
@@ -1147,7 +1100,4 @@ class BB2():
         '''
         return (self.getWhitePieces() | self.getBlackPieces())
                 #| self.bb[self.id['K']] | self.bb[self.id['k']])
-    
-
-    
-    
+                
