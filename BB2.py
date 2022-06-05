@@ -159,7 +159,8 @@ class BB2():
         moves += self.rMoves()
         moves += self.nMoves()
         moves += self.bMoves()
-        moves += self.qMoves()  
+        moves += self.qMoves()
+        moves += self.kMoves()
         return moves
     
     def check(self):
@@ -184,54 +185,62 @@ class BB2():
         Pr = np.right_shift(k_bb, nine) & self.bb[self.id['P']]
         if (Pl | Pr) != 0:
             #king is being checked by a black pawn
-            attack_list += 'p'
+            attack_list.append(('P', int(Pr | Pl)))
         N = self.n_BB(k_loc, self.bb[self.id['N']]) #pretend king is a knight, see if knight moves from king square land on a white knight
         if N != 0:
             #king is being checked by a white knight
-            attack_list += 'N' # +square
+            attack_list.append(('N', N))
         R = self.r_BB(k_loc, self.bb[self.id['R']])
         if R != 0:
             #king is being checked by a white rook
-            attack_list += 'R' # +square
+            attack_list.append(('R', R))
         B = self.b_BB(k_loc, self.bb[self.id['B']])
         if B != 0:
             #king is being checked by a white bishop
-            attack_list += 'B' # +square
+            attack_list.append(('B', B))
         Q = self.q_BB(k_loc, self.bb[self.id['Q']])
         if Q != 0:
-            #king is being checked by a white queen
-            attack_list += 'Q' # +square
+            #king is being checked by a white queen, could be two queens
+            i = Q & ~(Q - 1)
+            while (i != 0):
+                attack_list.append(('Q', i))
+                Q = Q & ~i
+                i = Q & ~(Q - 1)
         return attack_list
         
     def pieces_checking_white(self):
         '''
         Finds all moves in which the target is the location of the white king.
-        Returns the attack list, str with 3 chars denoting attacking piece.
+        Returns the attack list, each entry being a tuple of the char of attacking piece its int BB value.
         '''
-        attack_list = ''
+        attack_list = []
         K_loc = self.trailingZeros(self.bb[self.id['K']])
         K_bb = self.bb[self.id['K']]
         pr = np.left_shift(K_bb, seven) & self.bb[self.id['p']]
         pl = np.left_shift(K_bb, nine) & self.bb[self.id['p']]
         if (pr | pl) != 0:
             #king is being checked by a black pawn
-            attack_list += 'p'
+            attack_list.append(('p', int(pr | pl)))
         n = self.n_BB(K_loc, self.bb[self.id['n']]) #pretend king is a knight, see if knight moves from king square land on a white knight
         if n != 0:
             #king is being checked by a black knight
-            attack_list += 'n' # +square
+            attack_list.append(('n', n))
         r = self.r_BB(K_loc, self.bb[self.id['r']])
         if r != 0:
             #king is being checked by a black rook
-            attack_list += 'r' # +square
+            attack_list.append(('r', r))
         b = self.b_BB(K_loc, self.bb[self.id['b']])
         if b != 0:
             #king is being checked by a black bishop
-            attack_list += 'b' # +square
+            attack_list.append(('b', b))
         q = self.q_BB(K_loc, self.bb[self.id['q']])
         if q != 0:
-            #king is being checked by a black queen
-            attack_list += 'q' # +square
+            #king is being checked by a black queen, could be two queens
+            i = q & ~(q - 1)
+            while (i != 0):
+                attack_list.append(('q', i))
+                q = q & ~i
+                i = q & ~(q - 1)
         return attack_list
     
     def attacking_king(self, move_list, king_coord, piece_checking):
@@ -1100,4 +1109,3 @@ class BB2():
         '''
         return (self.getWhitePieces() | self.getBlackPieces())
                 #| self.bb[self.id['K']] | self.bb[self.id['k']])
-                
