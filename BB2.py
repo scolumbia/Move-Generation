@@ -103,7 +103,9 @@ class BB2():
 
     def reg_gen(self):
         '''
-        Move generation function for when king is not in check.
+        Move generation function that calls every piece's move gen method.
+        ???mask: optional argument, mask for when pseudo-legal moves must be filtered for check. *NO: can not include castling
+        Returns string containing all possible moves.
         '''
         moves = ''
         if self.whiteTurn:
@@ -127,26 +129,35 @@ class BB2():
         legal_moves = ''
         # only one piece is attacking
         if len(checking_pieces) == 1:
-            if checking_pieces[1][0].lower() != 'n' and checking_pieces[1][0].lower() != 'p': #attacking piece is not a knight or pawn
+            if checking_pieces[0][0].lower() != 'n' and checking_pieces[0][0].lower() != 'p': #attacking piece is not a knight or pawn
                 #block or capture the attacking piece
-                #calculate mask
-                legal_moves += self.take_or_block_check()
-                #TODO: add mask of block as a param to reg_gen????
+                #TODO: calculate actual sliding piece mask
+                mask = boardMask
+                legal_moves += self.take_or_block_check(mask)
             else:
                 #capture the knight or pawn (block not possible)
-                legal_moves += ''
+                legal_moves += self.take_or_block_check(checking_pieces[0][1])
         #move king to safety
         legal_moves += self.kMoves()
+        #TODO: check that king can take checking piece
         return legal_moves
     
-    def take_or_block_check(self, checking_pieces,):
+    def take_or_block_check(self, mask):
         '''
         Returns as a str the moves in which would result in the checking piece's being taken or its attack being blocked.
         Accepts moves (list of all moves as str) and checking pieces (str)
         '''
-        print(checking_pieces)
-        print(king_loc)
+        #print(checking_pieces)
         legal_moves = ''
+        if self.whiteTurn:
+            legal_moves += self.wpMoves(mask)
+        else:
+            legal_moves += self.bpMoves(mask)
+        legal_moves += self.rMoves(mask)
+        legal_moves += self.nMoves(mask)
+        legal_moves += self.bMoves(mask)
+        legal_moves += self.qMoves(mask)
+        #legal_moves += self.kMoves()
         return legal_moves
     
     def check(self):
