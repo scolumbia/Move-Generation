@@ -92,7 +92,8 @@ class BB2():
 
     def generate_moves(self):
         '''
-        Generates moves for current color. Returns an empty string if checkmate.
+        Generates moves for current color.
+        Returns an empty string if checkmate.
         '''
         checking_pieces = self.check()
         if len(checking_pieces) != 0: #king is in check
@@ -121,20 +122,16 @@ class BB2():
     def in_check_gen(self, checking_pieces):
         '''
         Generates possible moves when king is in check.
-        Takes checking_pieces (str), result of check function. E.g. b56
+        Takes checking_pieces (list of tuples), result of check function. E.g. b56
         '''
-        if self.whiteTurn:
-            king_loc = self.king_coords('K')
-        else:
-            king_loc = self.king_coords('k')
-        all_moves = self.reg_gen()
-        all_list = [all_moves[i:i+4] for i in range(0, len(all_moves), 4)]
         legal_moves = ''
         # only one piece is attacking
         if len(checking_pieces) == 1:
             if checking_pieces[1][0].lower() != 'n' and checking_pieces[1][0].lower() != 'p': #attacking piece is not a knight or pawn
                 #block or capture the attacking piece
-                legal_moves += ''
+                #calculate mask
+                legal_moves += self.take_or_block_check()
+                #TODO: add mask of block as a param to reg_gen????
             else:
                 #capture the knight or pawn (block not possible)
                 legal_moves += ''
@@ -142,22 +139,9 @@ class BB2():
         legal_moves += self.kMoves()
         return legal_moves
     
-    def take_check(self, moves, checking_pieces):
+    def take_or_block_check(self, checking_pieces,):
         '''
-        Returns as a str the moves in which would result in the checking piece being taken.
-        Accepts moves (list of all moves as str) and checking pieces (str)
-        '''
-        poss = []
-        square = checking_pieces[1:]
-        for move in moves:
-            c = move[2:]
-            if c == square:
-                poss.append(move)
-        return ''.join(poss)
-    
-    def block_check(self, moves, checking_pieces, king_loc):
-        '''
-        Returns as a str the moves in which would result in the checking piece's attack being blocked.
+        Returns as a str the moves in which would result in the checking piece's being taken or its attack being blocked.
         Accepts moves (list of all moves as str) and checking pieces (str)
         '''
         print(checking_pieces)
@@ -181,7 +165,7 @@ class BB2():
         Finds all moves in which the target is the location of the black king.
         Returns the attack list, each entry being a tuple of the char of attacking piece its int BB value.
         '''
-        attack_list = ''
+        attack_list = []
         k_loc = self.trailingZeros(self.bb[self.id['k']])
         k_bb = self.bb[self.id['k']]
         Pl = np.right_shift(k_bb, seven) & self.bb[self.id['P']]
