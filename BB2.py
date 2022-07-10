@@ -59,6 +59,17 @@ antiDiagonalMasks = [0x80, 0x8040, 0x804020, 0x80402010, 0x8040201008, 0x8040201
                            0x804020100000000, 0x402010000000000, 0x201000000000000, 0x100000000000000]
 antiDiagonalMasks = [np.uint64(num) for num in antiDiagonalMasks]
 
+belowMasks = [0xff, 0xffff, 0xffffff, 0xffffffff, 0xffffffffff, 0xffffffffffff, 0xffffffffffffff]
+belowMasks = [np.uint64(num) for num in belowMasks]
+
+aboveMasks = [~num for num in belowMasks]
+
+leftMasks = [0x8080808080808080, 0xc0c0c0c0c0c0c0c0, 0xe0e0e0e0e0e0e0e0, 0xf0f0f0f0f0f0f0f0, 0xf8f8f8f8f8f8f8f8, 
+                    0xfcfcfcfcfcfcfcfc, 0xfefefefefefefefe]
+leftMasks = [np.uint64(num) for num in leftMasks]
+
+rightMasks = [~num for num in leftMasks]
+
 class BB2():
     def __init__(self, fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'):
         '''
@@ -132,7 +143,7 @@ class BB2():
             if checking_pieces[0][0].lower() != 'n' and checking_pieces[0][0].lower() != 'p': #attacking piece is not a knight or pawn
                 #block or capture the attacking piece
                 #TODO: calculate actual sliding piece mask
-                mask = boardMask
+                mask = self.generate_check_mask(checking_pieces[0])
                 legal_moves += self.take_or_block_check(mask)
             else:
                 #capture the knight or pawn (block not possible)
@@ -141,6 +152,25 @@ class BB2():
         legal_moves += self.kMoves()
         #TODO: check that king can take checking piece
         return legal_moves
+
+    def generate_check_mask(self, att_piece):
+        '''
+        Accepts the tuple containing info on piece attacking king, ex ('r', 00000010...).
+        Returns BB line of sight from attacking piece to king in check.
+        '''
+        if self.whiteTurn:
+            king_bb = self.bb[self.id['K']]
+        else:
+            king_bb = self.bb[self.id['k']]
+        ki, kj = self.piece_coords(king_bb)
+        ai, aj = self.piece_coords(att_piece[1])
+        #on same i or j, rook or queen
+        if ki == ai or kj == aj:
+            #TODO finish method
+            pass
+        #must otherwise be on diagonal, bishop or queen
+        else:
+            pass
     
     def take_or_block_check(self, mask):
         '''
@@ -157,7 +187,6 @@ class BB2():
         legal_moves += self.nMoves(mask)
         legal_moves += self.bMoves(mask)
         legal_moves += self.qMoves(mask)
-        #legal_moves += self.kMoves()
         return legal_moves
     
     def check(self):
@@ -175,6 +204,7 @@ class BB2():
         '''
         Finds all moves in which the target is the location of the black king.
         Returns the attack list, each entry being a tuple of the char of attacking piece its int BB value.
+        ex ('R', 000001000...)
         '''
         attack_list = []
         k_loc = self.trailingZeros(self.bb[self.id['k']])
@@ -880,7 +910,16 @@ class BB2():
         self.restore_king(k_bb, 'k')
         return unsafe
     
-    
+    def piece_coords(self, bb_piece):
+        '''
+        Returns the tuple containing int i, j (row, col) coordinates for a passed bitboard value.
+        '''
+        index = self.trailingZeros(bb_piece)
+        i = 7 - index // 8
+        j = 7 - index % 8
+        return i, j
+
+
     def piece_type(self, square):
         '''
         Returns the piece type occupying square for check.
