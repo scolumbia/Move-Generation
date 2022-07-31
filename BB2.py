@@ -59,17 +59,6 @@ antiDiagonalMasks = [0x80, 0x8040, 0x804020, 0x80402010, 0x8040201008, 0x8040201
                            0x804020100000000, 0x402010000000000, 0x201000000000000, 0x100000000000000]
 antiDiagonalMasks = [np.uint64(num) for num in antiDiagonalMasks]
 
-belowMasks = [0xff, 0xffff, 0xffffff, 0xffffffff, 0xffffffffff, 0xffffffffffff, 0xffffffffffffff]
-belowMasks = [np.uint64(num) for num in belowMasks]
-
-aboveMasks = [~num for num in belowMasks]
-
-leftMasks = [0x8080808080808080, 0xc0c0c0c0c0c0c0c0, 0xe0e0e0e0e0e0e0e0, 0xf0f0f0f0f0f0f0f0, 0xf8f8f8f8f8f8f8f8, 
-                    0xfcfcfcfcfcfcfcfc, 0xfefefefefefefefe]
-leftMasks = [np.uint64(num) for num in leftMasks]
-
-rightMasks = [~num for num in leftMasks]
-
 class BB2():
     def __init__(self, fen='rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'):
         '''
@@ -118,6 +107,7 @@ class BB2():
         ???mask: optional argument, mask for when pseudo-legal moves must be filtered for check. *NO: can not include castling
         Returns string containing all possible moves.
         '''
+        #TODO: add logic for pinned pieces. Maybe have entirely separate handling, and simply temporarily remove from BB when doing the following method?
         moves = ''
         if self.whiteTurn:
             moves += self.wpMoves()
@@ -142,7 +132,6 @@ class BB2():
         if len(checking_pieces) == 1:
             if checking_pieces[0][0].lower() != 'n' and checking_pieces[0][0].lower() != 'p': #attacking piece is not a knight or pawn
                 #block or capture the attacking piece
-                #TODO: calculate actual sliding piece mask
                 mask = self.generate_check_mask(checking_pieces[0])
                 legal_moves += self.take_or_block_check(mask)
             else:
@@ -150,27 +139,35 @@ class BB2():
                 legal_moves += self.take_or_block_check(checking_pieces[0][1])
         #move king to safety
         legal_moves += self.kMoves()
-        #TODO: check that king can take checking piece
         return legal_moves
 
     def generate_check_mask(self, att_piece):
         '''
         Accepts the tuple containing info on piece attacking king, ex ('r', 00000010...).
-        Returns BB line of sight from attacking piece to king in check.
+        Returns BB line of sight from attacking piece to king in check by anding the attacks of the king as a slider and the checking piece.
         '''
         if self.whiteTurn:
             king_bb = self.bb[self.id['K']]
+            my_squares = self.getWhitePieces()
+            opponent_squares = self.getBlackPieces()
         else:
             king_bb = self.bb[self.id['k']]
+            my_squares = self.getBlackPieces()
+            opponent_squares = self.getWhitePieces()
+        k_loc = self.trailingZeros(king_bb)
+        att_loc = self.trailingZeros(att_piece[1])
         ki, kj = self.piece_coords(king_bb)
         ai, aj = self.piece_coords(att_piece[1])
-        #on same i or j, rook or queen
-        if ki == ai or kj == aj:
-            #TODO finish method
-            pass
-        #must otherwise be on diagonal, bishop or queen
+        rook_attack = (att_piece[0].lower() == 'q') and ((ki == ai) or (kj == aj))
+        if att_piece[0].lower() == 'r' or rook_attack:
+            #rook-like attack
+            attacker_moves = self.r_BB(att_loc, ~opponent_squares)
+            king_moves = self.r_BB(k_loc, ~my_squares)
         else:
-            pass
+            #bishop-like attack
+            attacker_moves = self.b_BB(att_loc, ~opponent_squares)
+            king_moves = self.b_BB(k_loc, ~my_squares)
+        return np.uint64((attacker_moves & king_moves) | att_piece[1])
     
     def take_or_block_check(self, mask):
         '''
@@ -271,6 +268,17 @@ class BB2():
                 i = q & ~(q - 1)
         return attack_list
     
+    def find_pinned_pieces(self, s):
+        '''
+        Finds pinned pieces.
+
+        '''
+        #diagonal rays of king whose turn it is
+        #see if opponent's diagonal pieces' moves overlap with any pieces of the king's color
+        #straight rays of king whose turn it is
+        #see if opponent's straight pieces' moves overlap with any piece's of the king's color
+        #add optional paramter for pinned pieces to move funcs, add mask to ensure that pinned piece remains pinned?
+    
     def diagonalMoves(self, s):
         '''
         Helper function for move generation for bishops and queens. Calculates rays of attacks.
@@ -327,7 +335,6 @@ class BB2():
             moveList += str(7 - index // 8 + 1) + str(7 - index % 8 - 1) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #capture left diagonal
         x = int((np.left_shift(P, nine)) & blackPieces & occ & ~rank8 & ~fileH & mask)
         y = x & ~(x - 1) #grab first 1
@@ -336,7 +343,6 @@ class BB2():
             moveList += str(7 - index // 8 + 1) + str(7 - index % 8 + 1) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #move one forward
         x = int((np.left_shift(P, eight)) & empty & ~rank8 & mask)
         y = x & ~(x - 1) #grab first 1
@@ -345,7 +351,6 @@ class BB2():
             moveList += str(7 - index // 8 + 1) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #move two forward (pawn still in initial position)
         x = int((np.left_shift(P, sixteen)) & empty & (np.left_shift(empty, eight)) & rank4 & mask)
         y = x & ~(x - 1) #grab first 1
@@ -354,7 +359,6 @@ class BB2():
             moveList += str(7 - index // 8 + 2) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         # PAWN PROMOTION
         # P, piece promotion (R, B, N, Q), y1, y2 (x coordinates are unneccessary)
         #pawn promotion: capture right
@@ -368,7 +372,6 @@ class BB2():
             moveList += 'PR' + y1 + y2 + 'PB' + y1 + y2 + 'PN' + y1 + y2 + 'PQ' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         #pawn promotion: capture left
         x = int((np.left_shift(P, nine)) & blackPieces & occ & rank8 & ~fileH & mask)
         y = x & ~(x - 1) #grab first 1
@@ -380,7 +383,6 @@ class BB2():
             moveList += 'PR' + y1 + y2 + 'PB' + y1 + y2 + 'PN' + y1 + y2 + 'PQ' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         #pawn promotion: one forward
         x = int((np.left_shift(P, eight)) & ~occ & rank8 & mask)
         y = x & ~(x - 1) #grab first 1
@@ -392,7 +394,6 @@ class BB2():
             moveList += 'PR' + y1 + y2 + 'PB' + y1 + y2 + 'PN' + y1 + y2 + 'PQ' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         # y1,y2, 'WE'
         #en passant to the right
         EP = np.uint64(self.en_passant())
@@ -401,8 +402,6 @@ class BB2():
             #print('en passant found')
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'WE'
-    
-    
         #en passant to the left
         x = int(np.left_shift(P, one) & self.bb[self.id['p']] & rank5 & ~fileH & EP & mask)
         if x != 0:
@@ -424,45 +423,41 @@ class BB2():
         empty = ~occ
         p = self.bb[self.id['p']]
         #capture right diagonal
-        x = int((np.right_shift(p, seven)) & whitePieces & occ & ~rank1 & ~fileH)
+        x = int((np.right_shift(p, seven)) & whitePieces & occ & ~rank1 & ~fileH & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y) #find index of least 1
             moveList += str(7 - index // 8 - 1) + str(7 - index % 8 + 1) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #capture left diagonal
-        x = int((np.right_shift(p, nine)) & whitePieces & occ & ~rank1 & ~fileA)
+        x = int((np.right_shift(p, nine)) & whitePieces & occ & ~rank1 & ~fileA & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
             moveList += str(7 - index // 8 - 1) + str(7 - index % 8 - 1) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #move one forward
-        x = int((np.right_shift(p, eight)) & empty & ~rank1)
+        x = int((np.right_shift(p, eight)) & empty & ~rank1 & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
             moveList += str(7 - index // 8 - 1) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-        
         #move two forward (pawn still in initial position)
-        x = int((np.right_shift(p, sixteen)) & empty & (np.right_shift(empty, eight)) & rank5)
+        x = int((np.right_shift(p, sixteen)) & empty & (np.right_shift(empty, eight)) & rank5 & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             index = self.trailingZeros(y)
             moveList += str(7 - index // 8 - 2) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         # PAWN PROMOTION
         # P, piece promotion (R, B, N, Q), y1, y2 (x coordinates are unneccessary)
         #pawn promotion: capture right
-        x = int((np.right_shift(p, seven)) & whitePieces & occ & rank1 & ~fileH)
+        x = int((np.right_shift(p, seven)) & whitePieces & occ & rank1 & ~fileH & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             #print('promotion right')
@@ -472,9 +467,8 @@ class BB2():
             moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         #pawn promotion: capture left
-        x = int((np.right_shift(p, nine)) & whitePieces & occ & rank1 & ~fileA)
+        x = int((np.right_shift(p, nine)) & whitePieces & occ & rank1 & ~fileA & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             #print('promotion left')
@@ -484,9 +478,8 @@ class BB2():
             moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         #pawn promotion: one forward
-        x = int((np.right_shift(p, eight)) & ~occ & rank1)
+        x = int((np.right_shift(p, eight)) & ~occ & rank1 & mask)
         y = x & ~(x - 1) #grab first 1
         while y != 0:
             #print('promotion forward')
@@ -496,26 +489,22 @@ class BB2():
             moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
             x &= ~y #remove least 1
             y = x & ~(x - 1) #find next least 1
-            
         # y1,y2, 'BE'
         #always rank 4 to rank 3, all that matters is file
         #en passant to the right
         EP = np.uint64(self.en_passant())
         #print(EP)
-        x = int(np.left_shift(p, one) & self.bb[self.id['P']] & rank4 & ~fileH & EP)
+        x = int(np.left_shift(p, one) & self.bb[self.id['P']] & rank4 & ~fileH & EP & mask)
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
-    
-    
         #en passant to the left
-        x = int(np.right_shift(p, one) & self.bb[self.id['P']] & rank4 & ~fileA & EP)
+        x = int(np.right_shift(p, one) & self.bb[self.id['P']] & rank4 & ~fileA & EP & mask)
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
-        
         #self.writeMoveList('blackPawn.txt', moveList)
         return moveList
     
@@ -553,7 +542,7 @@ class BB2():
         '''
         return int(self.diagonalMoves(square) & all_possible)
 
-    def nMoves(self):
+    def nMoves(self, mask=boardMask):
         '''
         Generates knight moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -567,7 +556,7 @@ class BB2():
         i = N & ~(N - 1)
         while i != 0:
             iLoc = self.trailingZeros(i)
-            poss = self.n_BB(iLoc, ~movePieces)
+            poss = self.n_BB(iLoc, (~movePieces & mask))
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
@@ -596,7 +585,7 @@ class BB2():
             poss = poss & ~fileGH & all_possible
         return int(poss)
     
-    def rMoves(self):
+    def rMoves(self, mask=boardMask):
         '''
         Generates rook moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -610,7 +599,7 @@ class BB2():
         i = R & ~(R - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = self.r_BB(iLoc, ~movePieces) #poss = int(self.rowMoves(iLoc) & ~movePieces)
+            poss = self.r_BB(iLoc, (~movePieces & mask)) #poss = int(self.rowMoves(iLoc) & ~movePieces)
             j = poss & ~(poss - 1)
             while (j != 0):
                 index = self.trailingZeros(j)
@@ -629,7 +618,7 @@ class BB2():
         '''
         return int(self.rowMoves(square) & all_possible)
     
-    def qMoves(self):
+    def qMoves(self, mask=boardMask):
         '''
         Generates queen moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -643,7 +632,7 @@ class BB2():
         i = Q & ~(Q - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = self.q_BB(iLoc, ~movePieces) #poss = int((self.rowMoves(iLoc) | self.diagonalMoves(iLoc)) & ~movePieces)
+            poss = self.q_BB(iLoc, (~movePieces & mask)) #poss = int((self.rowMoves(iLoc) | self.diagonalMoves(iLoc)) & ~movePieces)
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
@@ -944,6 +933,8 @@ class BB2():
         unsafe = (np.right_shift(P, seven) & ~fileH)
         #pawn capture left
         unsafe |= (np.right_shift(P, nine) & ~fileA)
+        #print('after pawns:')
+        #self.drawBin(unsafe)
         
         #knight
         N = int(self.bb[self.id['n']])
@@ -961,6 +952,8 @@ class BB2():
             unsafe |= poss
             N = N & ~i
             i = N & ~(N - 1)
+        #print('after knight:')
+        #self.drawBin(unsafe)
         
         #bishop/queen
         QB = int(self.bb[self.id['q']] | self.bb[self.id['b']])
@@ -971,6 +964,8 @@ class BB2():
             unsafe |= poss
             QB &= ~i
             i = QB & ~(QB - 1)
+        #print('after QB:')
+        #self.drawBin(unsafe)
         
         #rook/queen
         QR = int(self.bb[self.id['q']] | self.bb[self.id['r']])
@@ -981,6 +976,8 @@ class BB2():
             unsafe |= poss
             QR &= ~i
             i= QR & ~(QR - 1)
+        #print('after QR:')
+        #self.drawBin(unsafe)
         
         #king
         K = self.bb[self.id['k']]
@@ -994,7 +991,11 @@ class BB2():
         else:
             poss = poss & ~fileGH
         unsafe |= poss
+        #print('after king:')
+        #self.drawBin(unsafe)
         self.restore_king(k_bb, 'K')
+        #print('after restore:')
+        #self.drawBin(unsafe)
         return unsafe
         
     def reverseBits(self, n):
