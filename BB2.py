@@ -109,16 +109,18 @@ class BB2():
         '''
         #TODO: add logic for pinned pieces. Maybe have entirely separate handling, and simply temporarily remove from BB when doing the following method?
         moves = ''
+        pinned_pieces, pinned_bb = self.find_pinned_pieces()
         if self.whiteTurn:
-            moves += self.wpMoves()
+            moves += self.wpMoves(pinned_pieces, pinned_bb)
             moves += self.poss_castle_white()
         else:
-            moves += self.bpMoves()
+            moves += self.bpMoves(pinned_pieces, pinned_bb)
             moves += self.poss_castle_black()
-        moves += self.rMoves()
-        moves += self.nMoves()
-        moves += self.bMoves()
-        moves += self.qMoves()
+        print('moves so far '+moves)
+        moves += self.rMoves(pinned_pieces)
+        moves += self.nMoves(pinned_pieces)
+        moves += self.bMoves(pinned_pieces)
+        moves += self.qMoves(pinned_pieces)
         moves += self.kMoves()
         return moves
     
@@ -175,15 +177,16 @@ class BB2():
         Accepts moves (list of all moves as str) and checking pieces (str)
         '''
         #print(checking_pieces)
+        pinned_pieces, pinned_bb = self.find_pinned_pieces()
         legal_moves = ''
         if self.whiteTurn:
-            legal_moves += self.wpMoves(mask)
+            legal_moves += self.wpMoves(pinned_pieces, pinned_bb, mask)
         else:
-            legal_moves += self.bpMoves(mask)
-        legal_moves += self.rMoves(mask)
-        legal_moves += self.nMoves(mask)
-        legal_moves += self.bMoves(mask)
-        legal_moves += self.qMoves(mask)
+            legal_moves += self.bpMoves(pinned_pieces, pinned_bb, mask)
+        legal_moves += self.rMoves(pinned_pieces, mask)
+        legal_moves += self.nMoves(pinned_pieces, mask)
+        legal_moves += self.bMoves(pinned_pieces, mask)
+        legal_moves += self.qMoves(pinned_pieces, mask)
         return legal_moves
     
     def check(self):
@@ -268,16 +271,65 @@ class BB2():
                 i = q & ~(q - 1)
         return attack_list
     
-    def find_pinned_pieces(self, s):
+    def find_pinned_pieces(self):
         '''
         Finds pinned pieces.
-
         '''
-        #diagonal rays of king whose turn it is
-        #see if opponent's diagonal pieces' moves overlap with any pieces of the king's color
-        #straight rays of king whose turn it is
-        #see if opponent's straight pieces' moves overlap with any piece's of the king's color
-        #add optional paramter for pinned pieces to move funcs, add mask to ensure that pinned piece remains pinned?
+        pinned_pieces = {}
+        pinned_bb = 0
+        if self.whiteTurn:
+            pieces_to_check = ('r', 'b', 'q')
+            king = self.trailingZeros(self.bb[self.id['K']])
+            opponent_bb = self.getBlackPieces()
+            my_bb = self.getWhitePieces()
+        else:
+            pieces_to_check = ('R', 'B', 'Q')
+            king = self.trailingZeros(self.bb[self.id['k']])
+            opponent_bb = self.getWhitePieces()
+            my_bb = self.getBlackPieces()
+        straight_king_ray = np.uint64(self.r_BB(king, my_bb))
+        diagonal_king_ray = np.uint64(self.b_BB(king, my_bb))
+        rank = rankMasks[king // 8]
+        file = fileMasks[7 - king % 8]
+        diag = diagonalMasks[(king // 8) + (king % 8)]
+        anti = antiDiagonalMasks[(king // 8) + 7 - (king % 8)]
+        for piece in pieces_to_check:
+            B = int(self.bb[self.id[piece]])
+            i = B & ~(B - 1)
+            while (i != 0):
+                iLoc = self.trailingZeros(i)
+                if piece.lower() != 'b' and (i & int(rank) != 0 or i & int(file) != 0):
+                    poss = np.uint64(self.r_BB(iLoc, straight_king_ray & my_bb))
+                    if poss != 0:
+                        #poss is bb location of pinned piece
+                        print('pinned piece by rook-like', poss)
+                        if poss & rank != 0:
+                            ray = self.straight_pinned_ray(poss, rank) | i
+                        else:
+                            ray = self.straight_pinned_ray(poss, file) | i
+                elif piece.lower() != 'r' and (i & int(diag) != 0 or i & int(anti) != 0):
+                    poss = np.uint64(self.b_BB(iLoc, diagonal_king_ray & my_bb))
+                    if poss != 0:
+                        print('pinned piece by bishop-like', poss)
+                        if poss & anti != 0:
+                            ray = self.diagonal_pinned_ray(poss, anti) | i
+                        else:
+                            ray = self.diagonal_pinned_ray(poss, diag) | i
+                pinned_pieces[self.trailingZeros(poss)] = np.uint64(ray)
+                pinned_bb += poss
+                B = B & ~i
+                i = B & ~(B - 1)
+        return pinned_pieces, pinned_bb
+    
+    def straight_pinned_ray(self, piece, mask):
+        iLoc = self.trailingZeros(piece)
+        ray = self.r_BB(iLoc, ~self.getOccupied() & mask)
+        return ray | int(piece)
+        
+    def diagonal_pinned_ray(self, piece, mask):
+        iLoc = self.trailingZeros(piece)
+        ray = self.b_BB(iLoc, ~self.getOccupied() & mask)
+        return ray | int(piece)
     
     def diagonalMoves(self, s):
         '''
@@ -316,7 +368,7 @@ class BB2():
         
         return (horizPoss & rankMask) | (vertPoss & fileMask)
     
-    def wpMoves(self, mask=boardMask):
+    def wpMoves(self, pinned_pieces, pinned_bb, mask=boardMask):
         '''
         Generates white pawn moves.
         Param mask is optional, used during in check gen to make sure piece is legal for king safety.
@@ -409,10 +461,10 @@ class BB2():
             index = self.trailingZeros(x)
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'WE'
         #self.writeMoveList('whitePawn.txt', moveList)
+        print('pawn moves ' +moveList)
         return moveList#, check_poss
     
-    def bpMoves(self, mask=boardMask):
-        #TODO: ADD MASKING FOR CHECK
+    def bpMoves(self, pinned_pieces, pinned_bb, mask=boardMask):
         '''
         Generates black pawn moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -421,7 +473,9 @@ class BB2():
         whitePieces = self.getWhitePieces()
         occ = self.getOccupied()
         empty = ~occ
-        p = self.bb[self.id['p']]
+        pinned_pawns = self.bb[self.id['p']] & pinned_bb
+        moveList += self.pinned_black_pawn(pinned_pieces, pinned_pawns, mask)
+        p = self.bb[self.id['p']] & ~pinned_bb
         #capture right diagonal
         x = int((np.right_shift(p, seven)) & whitePieces & occ & ~rank1 & ~fileH & mask)
         y = x & ~(x - 1) #grab first 1
@@ -507,8 +561,81 @@ class BB2():
             moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
         #self.writeMoveList('blackPawn.txt', moveList)
         return moveList
+
+    def pinned_black_pawn(self, pinned_pieces, pinned_pawns, mask):
+        whitePieces = self.getWhitePieces()
+        occ = self.getOccupied()
+        empty = ~occ
+        moveList = ''
+        i = pinned_pawns & ~(pinned_pawns - 1)
+        while (i != 0):
+            iLoc = self.trailingZeros(i)
+            #capture right diagonal
+            x = int((np.right_shift(i, seven)) & whitePieces & occ & ~rank1 & ~fileH & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 - 1) + str(7 - index % 8 + 1) + str(7 - index // 8) + str(7 - index % 8)
+            #capture left diagonal
+            x = int((np.right_shift(i, nine)) & whitePieces & occ & ~rank1 & ~fileA & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 - 1) + str(7 - index % 8 - 1) + str(7 - index // 8) + str(7 - index % 8)
+            #move one forward
+            x = int((np.right_shift(i, eight)) & empty & ~rank1 & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 - 1) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
+            #move two forward (pawn still in initial position)
+            x = int((np.right_shift(i, sixteen)) & empty & (np.right_shift(empty, eight)) & rank5 & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 - 2) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
+            # PAWN PROMOTION
+            #pawn promotion: capture right
+            x = int((np.right_shift(i, seven)) & whitePieces & occ & rank1 & ~fileH & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion right')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8 + 1)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            #pawn promotion: capture left
+            x = int((np.right_shift(i, nine)) & whitePieces & occ & rank1 & ~fileA & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion left')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8 - 1)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            #pawn promotion: one forward
+            x = int((np.right_shift(i, eight)) & ~occ & rank1 & mask  & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion forward')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            # y1,y2, 'BE'
+            #always rank 4 to rank 3, all that matters is file
+            #en passant to the right
+            EP = np.uint64(self.en_passant())
+            #print(EP)
+            x = int(np.left_shift(i, one) & self.bb[self.id['P']] & rank4 & ~fileH & EP & mask) & pinned_pieces[iLoc]
+            if x != 0:
+                #print('en passant found')
+                index = self.trailingZeros(x)
+                moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
+            #en passant to the left
+            x = int(np.right_shift(i, one) & self.bb[self.id['P']] & rank4 & ~fileA & EP & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('en passant found')
+                index = self.trailingZeros(x)
+                moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
+            pinned_pawns = pinned_pawns & ~i
+            i = pinned_pawns & ~(pinned_pawns - 1)
+        return moveList
     
-    def bMoves(self, mask=boardMask):
+    def bMoves(self, pinned_pieces, mask=boardMask):
         '''
         Generates bishop moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -522,7 +649,10 @@ class BB2():
         i = B & ~(B - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = self.b_BB(iLoc, (~movePieces & mask)) #poss = int(self.diagonalMoves(iLoc) & ~movePieces)
+            if iLoc in pinned_pieces:
+                poss = self.b_BB(iLoc, (~movePieces & mask & pinned_pieces[iLoc]))
+            else:
+                poss = self.b_BB(iLoc, (~movePieces & mask)) #poss = int(self.diagonalMoves(iLoc) & ~movePieces)
             #self.drawBin(poss)
             j = poss & ~(poss - 1)
             while (j != 0):
@@ -534,7 +664,7 @@ class BB2():
             i = B & ~(B - 1)
         #self.writeMoveList('black_bishop.txt', moveList)
         return moveList
-        
+
     def b_BB(self, square, all_possible):
         '''
         Calculates and returns the bitboard for possible bishop moves.
@@ -542,7 +672,7 @@ class BB2():
         '''
         return int(self.diagonalMoves(square) & all_possible)
 
-    def nMoves(self, mask=boardMask):
+    def nMoves(self, pinned_pieces, mask=boardMask):
         '''
         Generates knight moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -556,7 +686,10 @@ class BB2():
         i = N & ~(N - 1)
         while i != 0:
             iLoc = self.trailingZeros(i)
-            poss = self.n_BB(iLoc, (~movePieces & mask))
+            if iLoc in pinned_pieces:
+                poss = self.n_BB(iLoc, (~movePieces & mask & pinned_pieces[iLoc]))
+            else:
+                poss = self.n_BB(iLoc, (~movePieces & mask))
             #self.drawBin(poss)
             #print()
             j = poss & ~(poss - 1)
@@ -585,7 +718,7 @@ class BB2():
             poss = poss & ~fileGH & all_possible
         return int(poss)
     
-    def rMoves(self, mask=boardMask):
+    def rMoves(self, pinned_pieces, mask=boardMask):
         '''
         Generates rook moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -599,7 +732,10 @@ class BB2():
         i = R & ~(R - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = self.r_BB(iLoc, (~movePieces & mask)) #poss = int(self.rowMoves(iLoc) & ~movePieces)
+            if iLoc in pinned_pieces:
+                poss = self.r_BB(iLoc, (~movePieces & mask & pinned_pieces[iLoc]))
+            else:
+                poss = self.r_BB(iLoc, (~movePieces & mask))
             j = poss & ~(poss - 1)
             while (j != 0):
                 index = self.trailingZeros(j)
@@ -618,7 +754,7 @@ class BB2():
         '''
         return int(self.rowMoves(square) & all_possible)
     
-    def qMoves(self, mask=boardMask):
+    def qMoves(self, pinned_pieces, mask=boardMask):
         '''
         Generates queen moves.
         Returns str, where each possible move is 4 characters long (oRank, oFile, dRank, dFile).
@@ -632,9 +768,11 @@ class BB2():
         i = Q & ~(Q - 1)
         while (i != 0):
             iLoc = self.trailingZeros(i)
-            poss = self.q_BB(iLoc, (~movePieces & mask)) #poss = int((self.rowMoves(iLoc) | self.diagonalMoves(iLoc)) & ~movePieces)
+            if iLoc in pinned_pieces:
+                poss = self.q_BB(iLoc, (~movePieces & mask & pinned_pieces[iLoc]))
+            else:
+                poss = self.q_BB(iLoc, (~movePieces & mask))
             #self.drawBin(poss)
-            #print()
             j = poss & ~(poss - 1)
             while (j != 0):
                 index = self.trailingZeros(j)
@@ -727,10 +865,11 @@ class BB2():
             if self.castle_wk and (((one << rook_castle[0]) & R) != 0): #can still castle and rook is unmoved
                 if ((occ | attacked) & (two | four)) == 0: #neither square being passed through is occupied or under attack
                     move_list += '7476'
-            if self.castle_wq and ((one << rook_castle[1]) != 0):
+            if self.castle_wq and ((one << rook_castle[1] & R) != 0):
                 if (occ | (attacked & ~((one << six)))) & ((((one << four)) | (one << five) | (one << six))) == 0:
                     move_list += '7472'
         #self.writeMoveList('castling_white.txt', move_list)
+        print('castle: '+move_list)
         return move_list
     
     def poss_castle_black(self):
@@ -746,7 +885,7 @@ class BB2():
             if self.castle_bk and (((one << rook_castle[2]) & r) != 0):
                 if ((occ | attacked) & ((np.uint64(1 << 57)) | (np.uint64(1 << 58)))) == 0:
                     move_list += '0406'
-            if self.castle_bq and ((one  << rook_castle[3]) != 0):
+            if self.castle_bq and (((one  << rook_castle[3]) & r) != 0):
                 if (occ | (attacked & ~np.uint64(1 << 62))) & (((np.uint64(1 << 62)) | np.uint64(1 << 61) | np.uint64(1 << 60))) == 0:
                     move_list += '0402'
         #self.writeMoveList('castling_black.txt', move_list)
