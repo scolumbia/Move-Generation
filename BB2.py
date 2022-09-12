@@ -274,6 +274,9 @@ class BB2():
     def find_pinned_pieces(self):
         '''
         Finds pinned pieces.
+        Returns (pinned_pieces, pinned_bb)
+        pinned_pieces: dictionnary where key=#0-36, location of pinnned pieces, and value is ray
+        pinned_bb: uinnt64 bb containing 1's for all pinnned pieces
         '''
         pinned_pieces = {}
         pinned_bb = 0
@@ -453,7 +456,7 @@ class BB2():
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
-            moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'WE'
+            moveList += str(7 - index % 8 - 1) + str(7 - index % 8) + 'WE'
         #en passant to the left
         x = int(np.left_shift(P, one) & self.bb[self.id['p']] & rank5 & ~fileH & EP & mask)
         if x != 0:
@@ -463,6 +466,79 @@ class BB2():
         #self.writeMoveList('whitePawn.txt', moveList)
         print('pawn moves ' +moveList)
         return moveList#, check_poss
+
+    def pinned_white_pawn(self, pinned_pieces, pinned_pawns, mask):
+        blackPieces = self.getBlackPieces()
+        occ = self.getOccupied()
+        empty = ~occ
+        moveList = ''
+        i = pinned_pawns & ~(pinned_pawns - 1)
+        while (i != 0):
+            iLoc = self.trailingZeros(i)
+            #capture right diagonal
+            x = int((np.left_shift(i, seven)) & blackPieces & occ & ~rank8 & ~fileA & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 + 1) + str(7 - index % 8 - 1) + str(7 - index // 8) + str(7 - index % 8)
+            #capture left diagonal
+            x = int((np.left_shift(i, nine)) & blackPieces & occ & ~rank8 & ~fileH & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 + 1) + str(7 - index % 8 + 1) + str(7 - index // 8) + str(7 - index % 8)
+            #move one forward
+            x = int((np.left_shift(i, eight)) & empty & ~rank8 & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 + 1) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
+            #move two forward (pawn still in initial position)
+            x = int((np.left_shift(i, sixteen)) & empty & (np.left_shift(empty, eight)) & rank4 & mask & pinned_pieces[iLoc])
+            if x != 0:
+                index = self.trailingZeros(x)
+                moveList += str(7 - index // 8 + 2) + str(7 - index % 8) + str(7 - index // 8) + str(7 - index % 8)
+            # PAWN PROMOTION
+            #pawn promotion: capture right
+            x = int((np.left_shift(i, seven)) & blackPieces & occ & rank8 & ~fileA & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion right')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8 - 1)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            #pawn promotion: capture left
+            x = int((np.left_shift(i, nine)) & blackPieces & occ & rank8 & ~fileH & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion left')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8 + 1)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            #pawn promotion: one forward
+            x = int((np.left_shift(i, eight)) & ~occ & rank8 & mask  & pinned_pieces[iLoc])
+            if x != 0:
+                #print('promotion forward')
+                index = self.trailingZeros(x) #find index of least 1
+                y1 = str(7 - index % 8)
+                y2 = str(7 - index % 8)
+                moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
+            # y1,y2, 'BE'
+            #always rank 4 to rank 3, all that matters is file
+            #en passant to the right
+            EP = np.uint64(self.en_passant())
+            #print(EP)
+            x = int(np.right_shift(i, one) & self.bb[self.id['p']] & rank5 & ~fileA & EP & mask) & pinned_pieces[iLoc]
+            if x != 0:
+                #print('en passant found')
+                index = self.trailingZeros(x)
+                moveList += str(7 - index % 8 - 1) + str(7 - index % 8) + 'WE' #TODO: check this logic
+            #en passant to the left
+            x = int(np.left_shift(i, one) & self.bb[self.id['p']] & rank5 & ~fileH & EP & mask & pinned_pieces[iLoc])
+            if x != 0:
+                #print('en passant found')
+                index = self.trailingZeros(x)
+                moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'WE' #TODO: same
+            pinned_pawns = pinned_pawns & ~i
+            i = pinned_pawns & ~(pinned_pawns - 1)
+        return moveList
     
     def bpMoves(self, pinned_pieces, pinned_bb, mask=boardMask):
         '''
@@ -558,7 +634,7 @@ class BB2():
         if x != 0:
             #print('en passant found')
             index = self.trailingZeros(x)
-            moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
+            moveList += str(7 - index % 8 - 1) + str(7 - index % 8) + 'BE'
         #self.writeMoveList('blackPawn.txt', moveList)
         return moveList
 
@@ -615,7 +691,7 @@ class BB2():
                 y1 = str(7 - index % 8)
                 y2 = str(7 - index % 8)
                 moveList += 'pr' + y1 + y2 + 'pb' + y1 + y2 + 'pn' + y1 + y2 + 'pq' + y1 + y2
-            # y1,y2, 'BE'
+            # y1,y2, 'BE', location of piece to remove
             #always rank 4 to rank 3, all that matters is file
             #en passant to the right
             EP = np.uint64(self.en_passant())
@@ -630,7 +706,7 @@ class BB2():
             if x != 0:
                 #print('en passant found')
                 index = self.trailingZeros(x)
-                moveList += str(7 - index % 8 + 1) + str(7 - index % 8) + 'BE'
+                moveList += str(7 - index % 8 - 1) + str(7 - index % 8) + 'BE'
             pinned_pawns = pinned_pawns & ~i
             i = pinned_pawns & ~(pinned_pawns - 1)
         return moveList
@@ -869,7 +945,6 @@ class BB2():
                 if (occ | (attacked & ~((one << six)))) & ((((one << four)) | (one << five) | (one << six))) == 0:
                     move_list += '7472'
         #self.writeMoveList('castling_white.txt', move_list)
-        print('castle: '+move_list)
         return move_list
     
     def poss_castle_black(self):
