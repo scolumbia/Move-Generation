@@ -10,16 +10,19 @@ import pygame
 
 class Graphics():
 
-    def __init__(self, game_display, pos_array):
+    def __init__(self, game_display, pos_array, FEN):
         '''
         Constructor for Graphics. Accepts the display object of the game to write
         graphics to, as well as a 2D string array of the current position of pieces starting 
-        from the upper left corner
+        from the upper left corner and FEN
         '''
         pygame.init()
-        
+        print(FEN)
         self.c = Colors()
         self.t = Text()
+
+        self.x = ()
+        self.y = ()
         
         self.width = game_display.get_size()[0]
         self.height = game_display.get_size()[1]
@@ -29,12 +32,12 @@ class Graphics():
         self.p = Pieces(pos_array) #2d array of strings, each representing a piece. Space for empty squares
         self.board = Board(self.square_len, self.coor, game_display)
         
-        self.init_screen()
+        self.init_screen(FEN)
     
     def getPositionArray(self):
         return self.p.getPos_Arr()
     
-    def init_screen(self):
+    def init_screen(self, FEN):
         '''
         Initializes the screen and calls necessary functions to do so.
         '''
@@ -42,8 +45,73 @@ class Graphics():
         self.draw_labels()
         self.board.draw_board()
         self.p.draw_all(self.board)
-        self.init_gamelog()
+        self.init_positionInfo(FEN)
+        #self.init_gamelog()
         pygame.display.update()
+
+    def init_positionInfo(self, FEN):
+        board_height = self.square_len * 8
+        end_board = self.coor[0] + board_height
+        wh = (150, board_height - 20)
+        c = (((self.width + end_board) / 2) - (wh[0] / 2), 50)
+
+        FEN_spl = FEN.split()
+        pos = FEN_spl[0]
+
+        move = FEN_spl[1]
+        move_str = 'Color to Move: '
+        if move == 'w':
+            move_str+='White'
+        else:
+            move_str+='Black'
+        TextSurf, TextRect = self.t.text_objects(move_str, self.t.med_txt)
+        #TextRect.center = (c[0] + (wh[0] / 2), (c[1] - 25))
+        TextRect.center = (750, 50)
+        self.game_display.blit(TextSurf, TextRect)
+
+        EPrights = FEN_spl[3]
+        EP_str = 'En Passant Square: '
+        if EPrights == '-':
+            EP_str += 'N/A'
+        else:
+            EP_str += str(EPrights)
+        TextSurf, TextRect = self.t.text_objects(EP_str, self.t.med_txt)
+        TextRect.center = (760, 80)
+        self.game_display.blit(TextSurf, TextRect)
+
+
+        castling = FEN_spl[2]
+        TextSurf, TextRect = self.t.text_objects('Castling Rights:', self.t.med_txt)
+        TextRect.center = (730, 110)
+        self.game_display.blit(TextSurf, TextRect)
+        y = 140
+        if castling == '-':
+            TextSurf, TextRect = self.t.text_objects('None', self.t.med_txt)
+            TextRect.center = (710, y)
+            self.game_display.blit(TextSurf, TextRect)
+        if 'K' in castling:
+            TextSurf, TextRect = self.t.text_objects('White Kingside', self.t.med_txt)
+            TextRect.center = (760, y)
+            self.game_display.blit(TextSurf, TextRect)
+            y += 30
+        if 'Q' in castling:
+            TextSurf, TextRect = self.t.text_objects('White Queenside', self.t.med_txt)
+            TextRect.center = (770, y)
+            self.game_display.blit(TextSurf, TextRect)
+            y += 30
+        if 'k' in castling:
+            TextSurf, TextRect = self.t.text_objects('Black Kingside', self.t.med_txt)
+            TextRect.center = (760, y)
+            self.game_display.blit(TextSurf, TextRect)
+            y += 30
+        if 'q' in castling:
+            TextSurf, TextRect = self.t.text_objects('Black Queenside', self.t.med_txt)
+            TextRect.center = (770, y)
+            self.game_display.blit(TextSurf, TextRect)
+            y += 30
+
+        #= FEN_spl[4]
+        #= FEN_spl[5]
 
     def init_gamelog(self):
         '''
@@ -102,6 +170,16 @@ class Graphics():
         textSurf, textRect = self.t.text_objects(msg, self.t.med_txt)
         textRect.center = ((x + (w / 2)), (y + (h / 2)))
         self.game_display.blit(textSurf, textRect)
+
+    def submitMove(self):
+        print(self.x,self.y)
+        #return True
+
+    def finish(self):
+        #close file
+        #pygame.quit()
+        #sys.exit()
+        pass
 
     def undo(self):
         return None

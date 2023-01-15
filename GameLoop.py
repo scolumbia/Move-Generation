@@ -19,14 +19,13 @@ class GameLoop():
         pygame.init()
         self.converter = RepConversion()
         self.game_display = self.makeDisplay(1600, 1200)
-        self.graphics = Graphics(self.game_display, array)#, self.converter.arr)
+        self.graphics = Graphics(self.game_display, array, FEN)#, self.converter.arr)
         self.bb = BB2(FEN)
         self.mouse = Mouse(self.graphics.coor, self.graphics.square_len)
         self.bb.getArray()
         ##FOR TESTING PURPOSES
         #ans = input('Enter answer file: ')
         #t = Test(array, ans)
-        self.bb.makeMove()
         self.game_loop()
         
     def makeDisplay(self, display_width, display_height):
@@ -50,10 +49,10 @@ class GameLoop():
                         if makingMove:
                             makingMove = False
                             self.graphics.move_piece((movingPiece), (self.mouse.mouse_loc(mousecoor)))
-                            # for line in self.graphics.p.pos_arr:
-                            #     print(line)
-                            # print()
+                            self.graphics.x = movingPiece
+                            self.graphics.y = self.mouse.mouse_loc(mousecoor)
                             print("piece moved to ", self.mouse.mouse_loc(mousecoor))
+
                         else:
                             sq = self.mouse.mouse_loc(mousecoor)
                             if self.graphics.p.at(sq):
@@ -61,23 +60,20 @@ class GameLoop():
                                 movingPiece = sq
                             print(movingPiece)
             
-            self.graphics.button('Undo', 40, 720, 150, 50,
-                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.undo)
-            self.graphics.button('Redo', 240, 720, 150, 50,
-                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
-            self.graphics.button('New Game', 440, 720, 150, 50,
-                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
-            self.graphics.button('Flip', 640, 720, 150, 50,
-                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
-            self.graphics.button('Capture Image', 840, 720, 150, 50,
+            self.graphics.button('Submit Move', 40, 720, 150, 50,
+                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.submitMove)
+            self.graphics.button('Finish', 240, 720, 150, 50,
+                            self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.finish)
+            self.graphics.button('Capture Image', 440, 720, 150, 50,
                             self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.getJPEG)
+            #self.graphics.button('New Game', 440, 720, 150, 50,
+             #               self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
+            #self.graphics.button('Flip', 640, 720, 150, 50,
+             #               self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
             # click = pygame.mouse.get_pressed()  # tuple of 3 elements
     
             pygame.display.update()  # updates entire surface, or flip
             #clock.tick(60)  # frames per second
-
-    def make_move(self):
-        pass
  
 def readIn(file):
     f = open(file, 'r')
