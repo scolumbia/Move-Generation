@@ -20,7 +20,7 @@ class Test():
         n = self.sortExpected(expected)
         #print(filecmp.cmp('output.txt', n, False))
         self.compareFiles(n, 'output.txt')
-        
+
     def readFile(self, file):
         '''
         Accepts input file.
@@ -120,4 +120,42 @@ class Test():
                 else: print('Case', i, 'passed.')
         else:
             print('Overall number of cases don\'t match')
-        
+
+def convertAlgebraic(algFile):
+        f = open(algFile, 'r')
+        out = open(algFile+'CON', 'w')
+        moves = f.read()
+        #print(moves)
+        moves = moves.lower()
+        moves = moves.replace('1','0')
+        moves = moves.replace('2','0')
+        moves = moves.replace('3','0')
+        moves = moves.replace('4','0')
+        moves = moves.replace('5','0')
+        moves = moves.replace('6','0')
+        moves = moves.replace('7','0')
+        moves = moves.replace('8','0')
+        moves = moves.replace('a','0')
+        moves = moves.replace('b','0')
+        moves = moves.replace('c','0')
+        moves = moves.replace('d','0')
+        moves = moves.replace('e','0')
+        moves = moves.replace('f','0')
+        moves = moves.replace('g','0')
+        moves = moves.replace('h','0')
+
+
+        #swap row, col
+        for move in moves:
+
+        out.write(moves)
+        f.close()
+        out.close()      
+
+def main():
+    name = input('Enter input file: ')
+    convertAlgebraic(name)
+    
+
+if __name__ == '__main__':
+    main()
