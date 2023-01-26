@@ -15,11 +15,11 @@ from BB2 import BB2
 from Test import Test
 
 class GameLoop():
-    def __init__(self, array, FEN):
+    def __init__(self, array, FEN, outName):
         pygame.init()
         self.converter = RepConversion()
         self.game_display = self.makeDisplay(1600, 1200)
-        self.graphics = Graphics(self.game_display, array, FEN)#, self.converter.arr)
+        self.graphics = Graphics(self.game_display, array, FEN, outName)#, self.converter.arr)
         self.bb = BB2(FEN)
         self.mouse = Mouse(self.graphics.coor, self.graphics.square_len)
         self.bb.getArray()
@@ -66,10 +66,6 @@ class GameLoop():
                             self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.finish)
             self.graphics.button('Capture Image', 440, 720, 150, 50,
                             self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY, self.graphics.getJPEG)
-            #self.graphics.button('New Game', 440, 720, 150, 50,
-             #               self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
-            #self.graphics.button('Flip', 640, 720, 150, 50,
-             #               self.graphics.c.GRAY, self.graphics.c.BRIGHT_GRAY)
             # click = pygame.mouse.get_pressed()  # tuple of 3 elements
     
             pygame.display.update()  # updates entire surface, or flip
@@ -85,10 +81,11 @@ def readIn(file):
 
 def main():
     name = input('Enter input file: ')
+    outName = input('Enter output file: ')
     r = readIn(name)
     array = r[0]
     FEN = r[1]
-    gl = GameLoop(array, FEN)
+    gl = GameLoop(array, FEN, outName)
 
 if __name__ == '__main__':
     main()

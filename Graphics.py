@@ -6,11 +6,12 @@ Created on Wed Jun 30 19:03:17 2021
 @author: sophiecolumbia
 """
 import pygame
-
+import sys
+import time
 
 class Graphics():
 
-    def __init__(self, game_display, pos_array, FEN):
+    def __init__(self, game_display, pos_array, FEN, outName):
         '''
         Constructor for Graphics. Accepts the display object of the game to write
         graphics to, as well as a 2D string array of the current position of pieces starting 
@@ -31,6 +32,8 @@ class Graphics():
         self.square_len = 75
         self.p = Pieces(pos_array) #2d array of strings, each representing a piece. Space for empty squares
         self.board = Board(self.square_len, self.coor, game_display)
+        self.enteredMoves = []
+        self.outName = outName
         
         self.init_screen(FEN)
     
@@ -46,7 +49,6 @@ class Graphics():
         self.board.draw_board()
         self.p.draw_all(self.board)
         self.init_positionInfo(FEN)
-        #self.init_gamelog()
         pygame.display.update()
 
     def init_positionInfo(self, FEN):
@@ -172,14 +174,23 @@ class Graphics():
         self.game_display.blit(textSurf, textRect)
 
     def submitMove(self):
-        print(self.x,self.y)
+        time.sleep(1)
+        print(self.x, self.y)
+        self.enteredMoves.append((self.x, self.y))
+        self.move_piece(self.y, self.x)
         #return True
 
     def finish(self):
         #close file
         #pygame.quit()
-        #sys.exit()
-        pass
+        print(self.enteredMoves)
+        out = open(self.outName, 'w')
+        for move in self.enteredMoves:
+            out.write(str(move[0][0]) + str(move[0][1]) + str(move[1][0]) + str(move[1][1]) +'\n')
+        out.close()
+        pygame.quit()
+        sys.exit()
+        
 
     def undo(self):
         return None

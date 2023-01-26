@@ -147,7 +147,7 @@ def convertAlgebraic(algFile):
 
         #swap row, col
         for move in moves:
-
+            pass
         out.write(moves)
         f.close()
         out.close()      
