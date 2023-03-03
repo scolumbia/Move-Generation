@@ -940,10 +940,10 @@ class BB2():
         if attacked & K == 0: #check if king is safe
             if self.castle_wk and (((one << rook_castle[0]) & R) != 0): #can still castle and rook is unmoved
                 if ((occ | attacked) & (two | four)) == 0: #neither square being passed through is occupied or under attack
-                    move_list += '7476'
+                    move_list += '7476' #castle kingside
             if self.castle_wq and ((one << rook_castle[1] & R) != 0):
                 if (occ | (attacked & ~((one << six)))) & ((((one << four)) | (one << five) | (one << six))) == 0:
-                    move_list += '7472'
+                    move_list += '7472' #castle queenside
         #self.writeMoveList('castling_white.txt', move_list)
         return move_list
     

@@ -3,6 +3,8 @@ A7a5
 B8a6
 B8c6
 B8d7
+B7b6
+B7b5
 C7c6
 C7c5
 D6e7

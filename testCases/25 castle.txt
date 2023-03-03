@@ -6,7 +6,7 @@ B3a4
 B3c4
 B3d5
 B3e6
-B3e7
+B3f7
 C3a4
 C4b5
 C3d5

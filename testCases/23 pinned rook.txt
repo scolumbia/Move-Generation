@@ -13,6 +13,7 @@ G2g3
 G2g4
 G1f1
 G1h1
+G1h2
 H3g4
 H3f5
 H3e6

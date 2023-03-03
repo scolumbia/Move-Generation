@@ -52,7 +52,6 @@ class GameLoop():
                             self.graphics.x = movingPiece
                             self.graphics.y = self.mouse.mouse_loc(mousecoor)
                             print("piece moved to ", self.mouse.mouse_loc(mousecoor))
-
                         else:
                             sq = self.mouse.mouse_loc(mousecoor)
                             if self.graphics.p.at(sq):
@@ -89,23 +88,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-# def game_intro():
-#     intro = True
-#     while intro:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 pygame.quit()
-#                 quit()
-#         game_display.fill(WHITE)
-#         TextSurf, TextRect = text_objects('Chess', large_txt)
-#         TextRect.center = (display_width / 2, display_height / 2)
-#         game_display.blit(TextSurf, TextRect)
-#         pygame.display.update()
-#         clock.tick(15)
+    

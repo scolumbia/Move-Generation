@@ -123,34 +123,151 @@ class Test():
 
 def convertAlgebraic(algFile):
         f = open(algFile, 'r')
-        out = open(algFile+'CON', 'w')
-        moves = f.read()
-        #print(moves)
-        moves = moves.lower()
-        moves = moves.replace('1','0')
-        moves = moves.replace('2','0')
-        moves = moves.replace('3','0')
-        moves = moves.replace('4','0')
-        moves = moves.replace('5','0')
-        moves = moves.replace('6','0')
-        moves = moves.replace('7','0')
-        moves = moves.replace('8','0')
-        moves = moves.replace('a','0')
-        moves = moves.replace('b','0')
-        moves = moves.replace('c','0')
-        moves = moves.replace('d','0')
-        moves = moves.replace('e','0')
-        moves = moves.replace('f','0')
-        moves = moves.replace('g','0')
-        moves = moves.replace('h','0')
-
-
-        #swap row, col
-        for move in moves:
-            pass
-        out.write(moves)
+        out = open(algFile+'CONVERTED', 'w')
+        fileLines = f.readlines()
+        for line in fileLines:
+            line = line.lower()
+            sq1 = line[0:2]
+            sq2 = line[2:4]
+            w1 = match(sq1)
+            w2 = match(sq2)
+            move = w1 + w2 + '\n'
+            out.write(move)
         f.close()
-        out.close()      
+        out.close()     
+
+def match(p):
+    if (p == 'a1'):
+        c = '70'
+    elif (p == 'a2'):
+        c = '60'
+    elif (p == 'a3'):
+        c = '50'
+    elif (p == 'a4'):
+        c = '40'
+    elif (p == 'a5'):
+        c = '30'
+    elif (p == 'a6'):
+        c = '20'
+    elif (p == 'a7'):
+        c = '10'
+    elif (p == 'a8'):
+        c = '00'
+    elif (p == 'b1'):
+        c = '71'
+    elif (p == 'b2'):
+        c = '61'
+    elif (p == 'b3'):
+        c = '51'
+    elif (p == 'b4'):
+        c = '41'
+    elif (p == 'b5'):
+        c = '31'
+    elif (p == 'b6'):
+        c = '21'
+    elif (p == 'b7'):
+        c = '11'
+    elif (p == 'b8'): #DONE
+        c = '01'
+    elif (p == 'c1'):
+        c = '72'
+    elif (p == 'c2'):
+        c = '62'
+    elif (p == 'c3'):
+        c = '52'
+    elif (p == 'c4'):
+        c = '42'
+    elif (p == 'c5'):
+        c = '32'
+    elif (p == 'c6'):
+        c = '22'
+    elif (p == 'c7'):
+        c = '12'
+    elif (p == 'c8'):
+        c = '02'
+    elif (p == 'd1'):
+        c = '73'
+    elif (p == 'd2'):
+        c = '63'
+    elif (p == 'd3'):
+        c = '53'
+    elif (p == 'd4'):
+        c = '43'
+    elif (p == 'd5'):
+        c = '33'
+    elif (p == 'd6'):
+        c = '23'
+    elif (p == 'd7'):
+        c = '13'
+    elif (p == 'd8'):
+        c = '03'
+    elif (p == 'e1'):
+        c = '74'
+    elif (p == 'e2'):
+        c = '64'
+    elif (p == 'e3'):
+        c = '54'
+    elif (p == 'e4'):
+        c = '44'
+    elif (p == 'e5'):
+        c = '34'
+    elif (p == 'e6'):
+        c = '24'
+    elif (p == 'e7'):
+        c = '14'
+    elif (p == 'e8'):
+        c = '04'
+    elif (p == 'f1'): 
+        c = '75'
+    elif (p == 'f2'):
+        c = '65'
+    elif (p == 'f3'):
+        c = '55'
+    elif (p == 'f4'):
+        c = '45'
+    elif (p == 'f5'):
+        c = '35'
+    elif (p == 'f6'):
+        c = '25'
+    elif (p == 'f7'):
+        c = '15'
+    elif (p == 'f8'):
+        c = '05'
+    elif (p == 'g1'):
+        c = '76'
+    elif (p == 'g2'):
+        c = '66'
+    elif (p == 'g3'):
+        c = '56'
+    elif (p == 'g4'):
+        c = '46'
+    elif (p == 'g5'):
+        c = '36'
+    elif (p == 'g6'):
+        c = '26'
+    elif (p == 'g7'):
+        c = '16'
+    elif (p == 'g8'):
+        c = '06'
+    elif (p == 'h1'):
+        c = '77'
+    elif (p == 'h2'):
+        c = '67'
+    elif (p == 'h3'):
+        c = '57'
+    elif (p == 'h4'):
+        c = '47'
+    elif (p == 'h5'):
+        c = '37'
+    elif (p == 'h6'):
+        c = '27'
+    elif (p == 'h7'):
+        c = '17'
+    elif (p == 'h8'):
+        c = '07'
+    else:
+        c = p
+    return c
 
 def main():
     name = input('Enter input file: ')

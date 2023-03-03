@@ -30,6 +30,7 @@ Castle king
 F3d4
 F3h4
 F3g1
+f3e5
 G5h6
 G5f4
 G5e3

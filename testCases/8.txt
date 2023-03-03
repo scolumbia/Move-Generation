@@ -22,11 +22,12 @@ D2d4
 D1e2
 E1e2
 E1f1
-Castle kingside
+Castle kingside7476
 F3g5
 F3h4
 F3g1
 F3d4
+F3e5
 G2g3
 G2g4
 H2h3
