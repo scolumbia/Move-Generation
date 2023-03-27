@@ -90,12 +90,23 @@ class Test():
                 curr.append(line.rstrip('\n'))
         aF.close()
         oF.close()
-        # for line in aList:
-        #     print(line)
-        # print()
-        # for line in oList:
-        #     print(line)
         self.compareLists(aList, oList)
+
+    def newCompare(self, expertList, genList):
+        answerSet = set()
+        genSet = set()
+        for move in expertList:
+            answerSet.add(move)
+        for move in genList:
+            genSet.add(move)
+            if move not in answerSet:
+                print('Move ' + move + 'was generated but is not in answer set')
+        extraExpert = answerSet - genSet
+        extraGen = genSet - answerSet
+        print('Moves given by expert but not generated:')
+        print(extraExpert)
+        print('Moves given by engine but not expert:')
+        print(extraGen)
             
     def compareLists(self, aList, oList):
         '''
